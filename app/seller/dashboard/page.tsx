@@ -15,7 +15,7 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     if (!isLoading && !seller) {
-      router.push('/seller/login');
+      router.push('/seller/dashboard');
     }
   }, [seller, isLoading, router]);
 
@@ -27,9 +27,7 @@ export default function SellerDashboard() {
     );
   }
 
-  if (!seller) {
-    return null;
-  }
+  
 
   const products = getSellerProducts();
   const totalProducts = products.length;
@@ -37,19 +35,21 @@ export default function SellerDashboard() {
   const totalRevenue = products.reduce((sum, p) => sum + (p.price * (p.stockQuantity || 0)), 0);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <>
+      
+      <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-            <p className="text-gray-600 mt-2">Welcome back, {seller.name}</p>
+            <p className="text-gray-600 mt-2">Welcome back, {seller?.name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant={seller.isVerified ? 'default' : 'secondary'}>
-                {seller.isVerified ? 'Verified Seller' : 'Pending Verification'}
+              <Badge variant={seller?.isVerified ? 'default' : 'secondary'}>
+                {seller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
               </Badge>
               <span className="text-sm text-gray-600">
-                Rating: {seller.rating}/5 ⭐
+                Rating: {seller?.rating}/5 ⭐
               </span>
             </div>
           </div>
@@ -82,7 +82,7 @@ export default function SellerDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{seller.totalSales}</div>
+              <div className="text-2xl font-bold">{seller?.totalSales}</div>
               <p className="text-xs text-muted-foreground">
                 All time sales
               </p>
@@ -108,7 +108,7 @@ export default function SellerDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{seller.rating}/5</div>
+              <div className="text-2xl font-bold">{seller?.rating}/5</div>
               <p className="text-xs text-muted-foreground">
                 Customer rating
               </p>
@@ -207,5 +207,8 @@ export default function SellerDashboard() {
         </Card>
       </div>
     </div>
+      
+    </>
+    
   );
 }

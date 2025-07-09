@@ -1,5 +1,5 @@
 import { connectMongoDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import User from "@/models/user"; // Assuming your User model defines phone and address
 import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -18,18 +18,31 @@ export const authOptions = {
           const user = await User.findOne({ email });
 
           if (!user) {
-            return null;
+            return null; // User not found
           }
 
           const passwordsMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordsMatch) {
-            return null;
+            return null; // Passwords do not match
           }
 
-          return user;
+          // IMPORTANT: Return a plain JavaScript object with the user data
+          // NextAuth.js will pick up these properties.
+          // Make sure to include the MongoDB _id as 'id' for NextAuth.js
+          return {
+            id: user._id.toString(), // Convert ObjectId to string
+            name: user.name, // Assuming you have a 'name' field
+            email: user.email,
+            phoneNumber: user.phoneNumber, // Include phoneNumber
+            address: user.address,       // Include address (assuming it's a string)
+            // You can add any other fields from your User model here
+            // e.g., image: user.profilePicture,
+            // e.g., role: user.role,
+          };
         } catch (error) {
-          console.log("Error: ", error);
+          console.error("Error during authorization: ", error); // Use console.error for errors
+          return null; // Return null on error
         }
       },
     }),
@@ -40,6 +53,46 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/",
+  },
+  // Add callbacks to pass custom data to the session
+  callbacks: {
+    async jwt({ token, user }) {
+      // 'user' is the object returned from the 'authorize' function above,
+      // it's only available on initial sign-in.
+      if (user) {
+        token.id = user.id;
+        token.phoneNumber = user.phoneNumber;
+        token.address = user.address;
+        // Add other fields you returned from authorize here
+        token.name = user.name; // Ensure name is also passed if not default
+        token.email = user.email; // Ensure email is also passed if not default
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // The 'session' object is what gets returned by useSession() on the client.
+      // We populate it with data from the 'token'.
+      if (token.id) {
+        session.user.id = token.id;
+      }
+      if (token.phoneNumber) {
+        session.user.phoneNumber = token.phoneNumber;
+      }
+      if (token.address) {
+        session.user.address = token.address;
+      }
+      // NextAuth usually populates session.user.name and .email automatically
+      // if they are present in the token. But explicitly ensuring them
+      // here doesn't hurt and clarifies intent.
+      if (token.name) {
+        session.user.name = token.name;
+      }
+      if (token.email) {
+        session.user.email = token.email;
+      }
+
+      return session;
+    },
   },
 };
 

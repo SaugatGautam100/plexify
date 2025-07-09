@@ -21,7 +21,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (!isLoading && !seller) {
-      router.push('/seller/login');
+      router.push('/seller/products');
       return;
     }
 
@@ -49,9 +49,9 @@ export default function EditProductPage() {
     );
   }
 
-  if (!seller || !product) {
-    return null;
-  }
+  // if (!seller || !product) {
+  //   return null;
+  // }
 
   const handleSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
@@ -66,7 +66,7 @@ export default function EditProductPage() {
       } else {
         toast({
           title: 'Error',
-          description: 'Failed to update product. Please try again.',
+          description: 'Failed to update product?. Please try again.',
           variant: 'destructive',
         });
       }
@@ -82,18 +82,18 @@ export default function EditProductPage() {
   };
 
   const initialData: Partial<ProductFormData> = {
-    name: product.name,
-    price: product.price,
-    originalPrice: product.originalPrice,
-    description: product.description,
-    category: product.category,
-    subcategory: product.subcategory,
-    brand: product.brand,
-    stockQuantity: product.stockQuantity,
-    features: product.features,
-    specifications: product.specifications,
-    tags: product.tags,
-    images: product.images,
+    name: product?.name,
+    price: product?.price,
+    originalPrice: product?.originalPrice,
+    description: product?.description,
+    category: product?.category,
+    subcategory: product?.subcategory,
+    brand: product?.brand,
+    stockQuantity: product?.stockQuantity,
+    features: product?.features,
+    specifications: product?.specifications,
+    tags: product?.tags,
+    images: product?.images,
   };
 
   return (

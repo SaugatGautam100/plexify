@@ -146,7 +146,7 @@ export default function Header() {
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2">
                   
-                  <Link href={"/account"}>
+                  <Link href={"/profile"}>
                     <Button variant="ghost" size="icon">
                       <User className="w-5 h-5" />
                     </Button>

@@ -17,7 +17,7 @@ export default function AddProductPage() {
 
   useEffect(() => {
     if (!isLoading && !seller) {
-      router.push('/seller/login');
+      router.push('/seller/products/add');
     }
   }, [seller, isLoading, router]);
 
@@ -29,34 +29,34 @@ export default function AddProductPage() {
     );
   }
 
-  if (!seller) {
-    return null;
-  }
+  // if (!seller) {
+  //   return null;
+  // }
 
-  const handleSubmit = async (data: ProductFormData) => {
-    try {
-      const success = await addProduct(data);
-      if (success) {
-        toast({
-          title: 'Product added successfully!',
-          description: 'Your product has been added to your store.',
-        });
-        router.push('/seller/products');
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to add product. Please try again.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
+  const handleSubmit = async (data: ProductFormData) => {}
+    // try {
+    //   const success = await addProduct();
+      // if (success) {
+      //   toast({
+      //     title: 'Product added successfully!',
+      //     description: 'Your product has been added to your store.',
+      //   });
+      //   router.push('/seller/products');
+      // } else {
+      //   toast({
+      //     title: 'Error',
+      //     description: 'Failed to add product. Please try again.',
+      //     variant: 'destructive',
+      //   });
+      // }
+  //   } catch (error) {
+  //     toast({
+  //       title: 'Error',
+  //       description: 'Something went wrong. Please try again.',
+  //       variant: 'destructive',
+  //     });
+  //   }
+  // };
 
   return (
     <div className="container mx-auto px-4 py-8">

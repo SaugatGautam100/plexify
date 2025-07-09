@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
+
+import AvatarUpload from '@/components/profile/avatar-upload';
 
 // Mock user data - replace with actual user context
 const mockUser = {
@@ -22,8 +25,8 @@ const mockUser = {
   phone: '+1 (555) 123-4567',
   avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150',
   dateOfBirth: '1990-05-15',
-  gender: 'male',
-  bio: 'Tech enthusiast and avid online shopper. Love discovering new products and brands.',
+  gender: 'Select a Gender',
+  bio: 'Write your bio here.',
   addresses: [
     {
       id: '1',
@@ -100,6 +103,10 @@ export default function ProfilePage() {
 
   const handleProfileUpdate = (field, value) => {
     setUser(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAvatarUpdate = (newAvatar) => {
+    setUser(prev => ({ ...prev, avatar: newAvatar }));
   };
 
   const handlePreferenceUpdate = (field, value) => {
@@ -189,30 +196,22 @@ export default function ProfilePage() {
     }
   };
 
+    const { data: session, status } = useSession();
+  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-6 mb-8">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <Button
-              size="icon"
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full"
-              onClick={() => toast({ title: 'Feature coming soon', description: 'Avatar upload will be available soon.' })}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          </div>
+          <AvatarUpload
+            currentAvatar={user.avatar}
+            onAvatarUpdate={handleAvatarUpdate}
+            userName={user.name}
+          />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{user.name}</h1>
-            <p className="text-gray-600">{user.email}</p>
+            <h1 className="text-3xl font-bold">{session?.user?.name}</h1>
+            <p className="text-gray-600">{session?.user?.email}</p>
             <p className="text-sm text-gray-500">Member since {new Date(user.createdAt).getFullYear()}</p>
           </div>
           <Button
@@ -256,7 +255,7 @@ export default function ProfilePage() {
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={user.name}
+                      value={session?.user?.name}
                       onChange={(e) => handleProfileUpdate('name', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -266,7 +265,7 @@ export default function ProfilePage() {
                     <Input
                       id="email"
                       type="email"
-                      value={user.email}
+                      value={session?.user?.email}
                       onChange={(e) => handleProfileUpdate('email', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -276,17 +275,17 @@ export default function ProfilePage() {
                     <Input
                       id="phone"
                       type="tel"
-                      value={user.phone}
+                      value={session?.user?.phone}
                       onChange={(e) => handleProfileUpdate('phone', e.target.value)}
                       disabled={!isEditing}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Label htmlFor="address">Address</Label>
                     <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={user.dateOfBirth}
+                      id="address"
+                      type="text"
+                      value={session?.user?.address}
                       onChange={(e) => handleProfileUpdate('dateOfBirth', e.target.value)}
                       disabled={!isEditing}
                     />

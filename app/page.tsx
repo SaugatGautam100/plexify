@@ -54,41 +54,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Truck className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Free Shipping</h3>
-              <p className="text-gray-600">Free shipping on orders over $50</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Secure Payment</h3>
-              <p className="text-gray-600">100% secure payment processing</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ShoppingBag className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Easy Returns</h3>
-              <p className="text-gray-600">30-day return policy</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Headphones className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">24/7 Support</h3>
-              <p className="text-gray-600">Round-the-clock customer support</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Categories Section */}
       <section className="py-16">
@@ -170,6 +136,41 @@ export default function Dashboard() {
               <Button className="bg-white text-blue-600 hover:bg-gray-100">
                 Subscribe
               </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* Features Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Truck className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Free Shipping</h3>
+              <p className="text-gray-600">Free shipping on orders over $50</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Secure Payment</h3>
+              <p className="text-gray-600">100% secure payment processing</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ShoppingBag className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Easy Returns</h3>
+              <p className="text-gray-600">30-day return policy</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Headphones className="w-8 h-8 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">24/7 Support</h3>
+              <p className="text-gray-600">Round-the-clock customer support</p>
             </div>
           </div>
         </div>
