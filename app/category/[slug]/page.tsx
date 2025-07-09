@@ -13,12 +13,6 @@ import ProductGrid from '@/components/product/product-grid';
 import { categories } from '@/lib/mock-data';
 import { Product } from '@/types';
 
-export async function generateStaticParams() {
-  return categories.map((category) => ({
-    slug: category.slug,
-  }));
-}
-
 export default function CategoryPage() {
   const params = useParams();
   const categorySlug = params.slug as string;
