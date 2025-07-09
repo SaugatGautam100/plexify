@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Star, Heart, ShoppingCart, Minus, Plus, Shield, Truck, RotateCcw } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCart } from '@/contexts/cart-context';
 import { useWishlist } from '@/contexts/wishlist-context';
-import { products } from '@/lib/mock-data';
+import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 import ProductGrid from '@/components/product/product-grid';
 
@@ -21,11 +21,51 @@ export default function ProductPage() {
   const productId = params.id as string;
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const { addItem } = useCart();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
 
-  const product = products.find(p => p.id === productId);
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/products/${productId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProduct(data.product);
+          
+          // Fetch related products
+          if (data.product?.category) {
+            const relatedResponse = await fetch(`/api/products?category=${data.product.category}&limit=4`);
+            if (relatedResponse.ok) {
+              const relatedData = await relatedResponse.json();
+              setRelatedProducts(relatedData.products.filter((p: Product) => p.id !== productId));
+            }
+          }
+        } else {
+          setProduct(null);
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [productId]);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading product...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -42,10 +82,6 @@ export default function ProductPage() {
   const discountPercentage = isOnSale 
     ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
     : 0;
-
-  const relatedProducts = products
-    .filter(p => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
 
   const handleAddToCart = () => {
     addItem(product, quantity);
