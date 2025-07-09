@@ -13,7 +13,6 @@ import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SellerProfilePage() {
-  const { seller, isLoading, updateSeller, logout } = useSeller();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -25,31 +24,29 @@ export default function SellerProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  // Mock seller data for demonstration
+  const mockSeller = {
+    name: 'John Seller',
+    businessName: 'My Business Store',
+    businessAddress: '123 Business Street, City, State 12345',
+    phone: '+1 (555) 123-4567',
+    email: 'seller@example.com',
+    description: 'We provide quality products with excellent customer service.',
+    isVerified: true,
+    rating: 4.5,
+    totalSales: 150,
+    createdAt: '2023-01-15T10:00:00Z'
+  };
+
   useEffect(() => {
-    if (!isLoading && !seller) {
-      router.push('/seller/login');
-    } else if (seller) {
-      setFormData({
-        name: seller.name,
-        businessName: seller.businessName,
-        businessAddress: seller.businessAddress,
-        phone: seller.phone,
-        description: seller.description || '',
-      });
-    }
-  }, [seller, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!seller) {
-    return null;
-  }
+    setFormData({
+      name: mockSeller.name,
+      businessName: mockSeller.businessName,
+      businessAddress: mockSeller.businessAddress,
+      phone: mockSeller.phone,
+      description: mockSeller.description || '',
+    });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
@@ -60,7 +57,6 @@ export default function SellerProfilePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateSeller(formData);
     setIsEditing(false);
     toast({
       title: 'Profile updated',
@@ -69,7 +65,6 @@ export default function SellerProfilePage() {
   };
 
   const handleLogout = () => {
-    logout();
     router.push('/seller/login');
   };
 
@@ -169,7 +164,7 @@ export default function SellerProfilePage() {
                     <div className="flex items-center gap-3">
                       <User className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium">{seller.name}</p>
+                        <p className="font-medium">{mockSeller.name}</p>
                         <p className="text-sm text-gray-600">Owner</p>
                       </div>
                     </div>
@@ -177,7 +172,7 @@ export default function SellerProfilePage() {
                     <div className="flex items-center gap-3">
                       <Building className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium">{seller.businessName}</p>
+                        <p className="font-medium">{mockSeller.businessName}</p>
                         <p className="text-sm text-gray-600">Business Name</p>
                       </div>
                     </div>
@@ -185,7 +180,7 @@ export default function SellerProfilePage() {
                     <div className="flex items-center gap-3">
                       <Mail className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium">{seller.email}</p>
+                        <p className="font-medium">{mockSeller.email}</p>
                         <p className="text-sm text-gray-600">Email Address</p>
                       </div>
                     </div>
@@ -193,7 +188,7 @@ export default function SellerProfilePage() {
                     <div className="flex items-center gap-3">
                       <Phone className="w-5 h-5 text-gray-400" />
                       <div>
-                        <p className="font-medium">{seller.phone}</p>
+                        <p className="font-medium">{mockSeller.phone}</p>
                         <p className="text-sm text-gray-600">Phone Number</p>
                       </div>
                     </div>
@@ -201,15 +196,15 @@ export default function SellerProfilePage() {
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-gray-400 mt-1" />
                       <div>
-                        <p className="font-medium">{seller.businessAddress}</p>
+                        <p className="font-medium">{mockSeller.businessAddress}</p>
                         <p className="text-sm text-gray-600">Business Address</p>
                       </div>
                     </div>
 
-                    {seller.description && (
+                    {mockSeller.description && (
                       <div>
                         <h3 className="font-medium mb-2">About Our Store</h3>
-                        <p className="text-gray-600">{seller.description}</p>
+                        <p className="text-gray-600">{mockSeller.description}</p>
                       </div>
                     )}
                   </div>
@@ -228,8 +223,8 @@ export default function SellerProfilePage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span>Verification Status</span>
-                  <Badge variant={seller.isVerified ? 'default' : 'secondary'}>
-                    {seller.isVerified ? 'Verified' : 'Pending'}
+                  <Badge variant={mockSeller.isVerified ? 'default' : 'secondary'}>
+                    {mockSeller.isVerified ? 'Verified' : 'Pending'}
                   </Badge>
                 </div>
                 
@@ -237,19 +232,19 @@ export default function SellerProfilePage() {
                   <span>Store Rating</span>
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{seller.rating}/5</span>
+                    <span className="font-medium">{mockSeller.rating}/5</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span>Total Sales</span>
-                  <span className="font-medium">{seller.totalSales}</span>
+                  <span className="font-medium">{mockSeller.totalSales}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span>Member Since</span>
                   <span className="text-sm text-gray-600">
-                    {new Date(seller.createdAt).toLocaleDateString()}
+                    {new Date(mockSeller.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </CardContent>

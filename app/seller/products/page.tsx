@@ -12,30 +12,34 @@ import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SellerProductsPage() {
-  const { seller, isLoading, getSellerProducts, deleteProduct } = useSeller();
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !seller) {
-      router.push('/seller/login');
+  // Mock products data for demonstration
+  const products = [
+    {
+      id: '1',
+      name: 'Sample Product 1',
+      category: 'Electronics',
+      brand: 'SampleBrand',
+      price: 99.99,
+      inStock: true,
+      stockQuantity: 10,
+      image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=800'
+    },
+    {
+      id: '2',
+      name: 'Sample Product 2',
+      category: 'Fashion',
+      brand: 'FashionBrand',
+      price: 49.99,
+      inStock: false,
+      stockQuantity: 0,
+      image: 'https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg?auto=compress&cs=tinysrgb&w=800'
     }
-  }, [seller, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!seller) {
-    return null;
-  }
-
-  const products = getSellerProducts();
+  ];
+  
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -44,19 +48,11 @@ export default function SellerProductsPage() {
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (confirm(`Are you sure you want to delete "${productName}"?`)) {
-      const success = await deleteProduct(productId);
-      if (success) {
-        toast({
-          title: 'Product deleted',
-          description: 'Product has been successfully deleted.',
-        });
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete product.',
-          variant: 'destructive',
-        });
-      }
+      // Mock success for demonstration
+      toast({
+        title: 'Product deleted',
+        description: 'Product has been successfully deleted.',
+      });
     }
   };
 

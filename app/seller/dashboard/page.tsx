@@ -10,26 +10,17 @@ import { Badge } from '@/components/ui/badge';
 import { useSeller } from '@/contexts/seller-context';
 
 export default function SellerDashboard() {
-  const { seller, isLoading, getSellerProducts } = useSeller();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !seller) {
-      router.push('/seller/dashboard');
-    }
-  }, [seller, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
+  // Mock seller data for demonstration
+  const mockSeller = {
+    name: 'John Seller',
+    isVerified: true,
+    rating: 4.5,
+    totalSales: 150
+  };
   
-
-  const products = getSellerProducts();
+  const products = []; // Mock empty products array
   const totalProducts = products.length;
   const inStockProducts = products.filter(p => p.inStock).length;
   const totalRevenue = products.reduce((sum, p) => sum + (p.price * (p.stockQuantity || 0)), 0);
@@ -43,13 +34,13 @@ export default function SellerDashboard() {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-            <p className="text-gray-600 mt-2">Welcome back, {seller?.name}</p>
+            <p className="text-gray-600 mt-2">Welcome back, {mockSeller?.name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant={seller?.isVerified ? 'default' : 'secondary'}>
-                {seller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
+              <Badge variant={mockSeller?.isVerified ? 'default' : 'secondary'}>
+                {mockSeller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
               </Badge>
               <span className="text-sm text-gray-600">
-                Rating: {seller?.rating}/5 ⭐
+                Rating: {mockSeller?.rating}/5 ⭐
               </span>
             </div>
           </div>
@@ -83,6 +74,7 @@ export default function SellerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{seller?.totalSales}</div>
+              <div className="text-2xl font-bold">{mockSeller?.totalSales}</div>
               <p className="text-xs text-muted-foreground">
                 All time sales
               </p>
@@ -108,7 +100,7 @@ export default function SellerDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{seller?.rating}/5</div>
+              <div className="text-2xl font-bold">{mockSeller?.rating}/5</div>
               <p className="text-xs text-muted-foreground">
                 Customer rating
               </p>

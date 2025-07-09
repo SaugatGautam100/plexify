@@ -17,7 +17,6 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { items, getTotal, clearCart } = useCart();
-  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -43,8 +42,17 @@ export default function CheckoutPage() {
   };
 
   if (items.length === 0) {
-    router.push('/cart');
-    return null;
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-4">Your cart is empty</h1>
+          <p className="text-gray-600 mb-8">Add some items to your cart before checking out.</p>
+          <button onClick={() => router.push('/products')} className="bg-blue-600 text-white px-6 py-2 rounded-lg">
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

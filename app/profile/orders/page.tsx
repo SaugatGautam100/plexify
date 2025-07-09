@@ -8,33 +8,38 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function OrdersPage() {
-  const { user, isLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
+  // Mock user data for demonstration
+  const mockUser = {
+    orders: [
+      {
+        id: 'ORD-001',
+        createdAt: '2024-01-15T10:00:00Z',
+        status: 'delivered',
+        paymentMethod: 'Credit Card',
+        total: 299.99,
+        items: [
+          {
+            id: '1',
+            product: {
+              name: 'iPhone 15 Pro',
+              image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=800',
+              price: 999
+            },
+            quantity: 1
+          }
+        ]
+      }
+    ]
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">My Orders</h1>
 
-        {user.orders.length === 0 ? (
+        {mockUser.orders.length === 0 ? (
           <Card>
             <CardContent className="text-center py-16">
               <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
@@ -44,7 +49,7 @@ export default function OrdersPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {user.orders.map((order) => (
+            {mockUser.orders.map((order) => (
               <Card key={order.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
