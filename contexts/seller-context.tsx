@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useState } from 'react';
 import { Seller, Product, ProductFormData } from '@/types';
-import { useSession } from 'next-auth/react';
 
 interface SellerContextType {
   seller: Seller | null;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithData: (sellerData: Seller) => void;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
   updateSeller: (updates: Partial<Seller>) => void;
@@ -22,9 +22,9 @@ interface RegisterData {
   name: string;
   email: string;
   password: string;
+  phone: string;
   businessName: string;
   businessAddress: string;
-  phone: string;
   description?: string;
 }
 
@@ -34,60 +34,67 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
   const [seller, setSeller] = useState<Seller | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
-  const { data: session } = useSession();
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - replace with your implementation
-    console.log('Seller login attempt:', { email, password });
-    // For now, we'll use the session user as seller
-    if (session?.user) {
-      const mockSeller: Seller = {
-        id: session.user.id || '1',
-        name: session.user.name || 'Seller',
-        email: session.user.email || 'seller@example.com',
-        businessName: 'My Business',
-        businessAddress: '123 Business St',
-        phone: '+1234567890',
-        description: 'My business description',
-        rating: 4.5,
-        totalSales: 0,
-        products: [],
-        isVerified: true,
-        createdAt: new Date().toISOString(),
-      };
-      setSeller(mockSeller);
-      await refreshProducts();
-      return true;
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/seller/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSeller(data.seller);
+        await refreshProducts();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    return false;
+  };
+
+  const loginWithData = (sellerData: Seller) => {
+    setSeller(sellerData);
+    refreshProducts();
   };
 
   const register = async (data: RegisterData): Promise<boolean> => {
-    // Mock register - replace with your implementation
-    console.log('Seller register attempt:', data);
-    // For now, we'll use the session user as seller
-    if (session?.user) {
-      const mockSeller: Seller = {
-        id: session.user.id || '1',
-        name: data.name,
-        email: data.email,
-        businessName: data.businessName,
-        businessAddress: data.businessAddress,
-        phone: data.phone,
-        description: data.description,
-        rating: 4.5,
-        totalSales: 0,
-        products: [],
-        isVerified: true,
-        createdAt: new Date().toISOString(),
-      };
-      setSeller(mockSeller);
-      return true;
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/seller/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch('/api/seller/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setSeller(null);
     setSellerProducts([]);
   };
@@ -162,10 +169,10 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProducts = async () => {
-    if (!session?.user?.id) return;
+    if (!seller?.id) return;
     
     try {
-      const response = await fetch(`/api/products?sellerId=${session.user.id}`);
+      const response = await fetch(`/api/products?sellerId=${seller.id}`);
       if (response.ok) {
         const data = await response.json();
         setSellerProducts(data.products || []);
@@ -180,6 +187,7 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
       value={{
         seller,
         login,
+        loginWithData,
         register,
         logout,
         updateSeller,

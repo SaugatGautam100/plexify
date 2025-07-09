@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth-context'; // Keep if used elsewhere, but not directly for registration below
+import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from "react-hook-form";
 import { z } from "zod"; // For Zod validation
 import { zodResolver } from "@hookform/resolvers/zod"; // For integrating Zod with react-hook-form
 import { Toaster } from '../ui/toaster';
-// Removed Chrome and Github imports from lucide-react as we'll use custom SVGs
 
-// 1. Define your Zod schema for validation, including new fields for phone and address
+// 1. Define your Zod schema for validation, including seller-specific fields
 const registerSchema = z.object({
   name: z.string()
     .min(1, "Full Name is required")
@@ -27,9 +27,16 @@ const registerSchema = z.object({
     .min(10, "Phone number is required")
     .max(10, "Phone must be at most 10 characters")
     .regex(/^\+?[0-9]{7,15}$/, "Invalid phone number format"), // Basic phone number regex
-  address: z.string()
-    .min(1, "Address is required")
-    .min(5, "Address must be at least 5 characters"),
+  businessName: z.string()
+    .min(1, "Business Name is required")
+    .min(2, "Business Name must be at least 2 characters")
+    .max(50, "Business Name must be at most 50 characters"),
+  businessAddress: z.string()
+    .min(1, "Business Address is required")
+    .min(5, "Business Address must be at least 5 characters"),
+  description: z.string()
+    .max(500, "Description must be at most 500 characters")
+    .optional(),
   password: z.string()
     .min(1, "Password is required")
     .min(4, "Password must be at least 4 characters")
@@ -44,11 +51,11 @@ const registerSchema = z.object({
 // Infer the type of your form inputs from the schema
 type RegisterFormInputs = z.infer<typeof registerSchema>;
 
-export default function RegisterForm() {
+export default function SellerRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { login } = useAuth(); // Assuming this context is still relevant elsewhere
+  const { register: registerSeller } = useSeller();
 
   // 2. Integrate react-hook-form with Zod resolver and specify the type
   const {
@@ -64,7 +71,9 @@ export default function RegisterForm() {
       name: "",
       email: "",
       phone: "",
-      address: "",
+      businessName: "",
+      businessAddress: "",
+      description: "",
       password: "",
       confirmPassword: ""
     }
@@ -76,7 +85,7 @@ export default function RegisterForm() {
 
     try {
       // Check if user exists
-      const resUserExists = await fetch("/api/userExists", {
+      const resSellerExists = await fetch("/api/seller/exists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,12 +93,12 @@ export default function RegisterForm() {
         body: JSON.stringify({ email: data.email }), // Use data.email from react-hook-form
       });
 
-      const { user } = await resUserExists.json();
+      const { seller } = await resSellerExists.json();
 
-      if (user) {
+      if (seller) {
         toast({
           title: 'Error',
-          description: 'User with this email already exists.',
+          description: 'Seller with this email already exists.',
           variant: 'destructive',
         });
         setIsLoading(false); // Reset loading state on early exit
@@ -97,7 +106,7 @@ export default function RegisterForm() {
       }
 
       // Proceed with registration
-      const res = await fetch("/api/register", {
+      const res = await fetch("/api/seller/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +115,9 @@ export default function RegisterForm() {
           name: data.name,
           email: data.email,
           phone: data.phone, // Include phone
-          address: data.address, // Include address
+          businessName: data.businessName,
+          businessAddress: data.businessAddress,
+          description: data.description,
           password: data.password,
         }),
       });
@@ -114,11 +125,11 @@ export default function RegisterForm() {
       if (res.ok) {
         toast({
           title: 'Success!',
-          description: 'Account created successfully. Please log in.',
+          description: 'Seller account created successfully. Please log in.',
           variant: 'default', // Or 'success' if you have one
         });
         reset(); // Clear the form fields after successful submission
-        router.replace("/login"); // Redirect to login page
+        router.replace("/seller/login"); // Redirect to seller login page
       } else {
         // Handle API errors that are not validation related (e.g., server failure)
         // Attempt to parse a message from the API response
@@ -128,7 +139,7 @@ export default function RegisterForm() {
           description: errorData.message || 'Something went wrong during registration.',
           variant: 'destructive',
         });
-        console.error("User registration failed:", errorData);
+        console.error("Seller registration failed:", errorData);
       }
     } catch (error) {
       toast({
@@ -151,7 +162,9 @@ export default function RegisterForm() {
     if (errors.name) errorMessages.push(errors.name.message);
     if (errors.email) errorMessages.push(errors.email.message);
     if (errors.phone) errorMessages.push(errors.phone.message); // Add phone error
-    if (errors.address) errorMessages.push(errors.address.message); // Add address error
+    if (errors.businessName) errorMessages.push(errors.businessName.message);
+    if (errors.businessAddress) errorMessages.push(errors.businessAddress.message);
+    if (errors.description) errorMessages.push(errors.description.message);
     if (errors.password) errorMessages.push(errors.password.message);
     if (errors.confirmPassword) errorMessages.push(errors.confirmPassword.message);
 
@@ -197,9 +210,9 @@ export default function RegisterForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Register</CardTitle>
+        <CardTitle>Register as Seller</CardTitle>
         <CardDescription>
-          Create a new account to start shopping
+          Create a seller account to start selling on our platform
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -225,7 +238,7 @@ export default function RegisterForm() {
             <Input
               id="email"
               type="email"
-              placeholder="john@example.com"
+              placeholder="seller@business.com"
               {...register("email")} // This connects the input to the 'email' field in your schema
             />
             {errors.email && (
@@ -251,15 +264,39 @@ export default function RegisterForm() {
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="businessName">Business Name</Label>
             <Input
-              id="address"
+              id="businessName"
               type="text"
-              placeholder="tol, street, city, state, country"
-              {...register("address")} // Register the new address field
+              placeholder="Your Business Name"
+              {...register("businessName")}
             />
-            {errors.address && (
-              <p className="text-red-500 text-sm">{errors.address.message}</p>
+            {errors.businessName && (
+              <p className="text-red-500 text-sm">{errors.businessName.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="businessAddress">Business Address</Label>
+            <Textarea
+              id="businessAddress"
+              placeholder="Street, City, State, Country"
+              {...register("businessAddress")}
+              rows={3}
+            />
+            {errors.businessAddress && (
+              <p className="text-red-500 text-sm">{errors.businessAddress.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Business Description (Optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Tell us about your business..."
+              {...register("description")}
+              rows={3}
+            />
+            {errors.description && (
+              <p className="text-red-500 text-sm">{errors.description.message}</p>
             )}
           </div>
           <div className="space-y-2">
@@ -285,7 +322,7 @@ export default function RegisterForm() {
             )}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading || isSubmitting}>
-            {isLoading || isSubmitting ? 'Creating Account...' : 'Register'}
+            {isLoading || isSubmitting ? 'Creating Seller Account...' : 'Register as Seller'}
           </Button>
         </form>
 

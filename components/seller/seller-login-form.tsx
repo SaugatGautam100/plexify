@@ -5,22 +5,105 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { signIn } from "next-auth/react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth-context';
+import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '../ui/toaster';
 
-export default function LoginForm() {
+export default function SellerLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login } = useSeller();
   const { toast } = useToast();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/seller/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store seller data in context
+        login(data.seller);
+        
+        toast({
+          title: 'Success!',
+          description: 'Login successful. Welcome to your seller dashboard!',
+          variant: 'default',
+        });
+        
+        router.push('/seller/dashboard');
+      } else {
+        toast({
+          title: 'Error',
+          description: data.message || 'Invalid credentials.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Alternative login method using the context login function
+  const handleContextLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const success = await login(email, password);
+      
+      if (success) {
+        toast({
+          title: 'Success!',
+          description: 'Login successful. Welcome to your seller dashboard!',
+          variant: 'default',
+        });
+        router.push('/seller/dashboard');
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Invalid credentials.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Use the direct API call method for now
+  const finalHandleSubmit = handleSubmit;
+
+  const handleSubmitOld = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -82,13 +165,13 @@ export default function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={finalHandleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="john@example.com"
+              placeholder="seller@business.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -105,7 +188,7 @@ export default function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
+            {isLoading ? 'Logging in...' : 'Login to Seller Account'}
           </Button>
         </form>
 
