@@ -11,52 +11,25 @@ import { ProductFormData } from '@/types';
 import Link from 'next/link';
 
 export default function AddProductPage() {
-  const { seller, isLoading, addProduct } = useSeller();
   const { toast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !seller) {
-      router.push('/seller/products/add');
+  const handleSubmit = async (data: ProductFormData) => {
+    try {
+      // Mock success for demonstration
+      toast({
+        title: 'Product added successfully!',
+        description: 'Your product has been added to your store.',
+      });
+      router.push('/seller/products');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
     }
-  }, [seller, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
-
-  // if (!seller) {
-  //   return null;
-  // }
-
-  const handleSubmit = async (data: ProductFormData) => {}
-    // try {
-    //   const success = await addProduct();
-      // if (success) {
-      //   toast({
-      //     title: 'Product added successfully!',
-      //     description: 'Your product has been added to your store.',
-      //   });
-      //   router.push('/seller/products');
-      // } else {
-      //   toast({
-      //     title: 'Error',
-      //     description: 'Failed to add product. Please try again.',
-      //     variant: 'destructive',
-      //   });
-      // }
-  //   } catch (error) {
-  //     toast({
-  //       title: 'Error',
-  //       description: 'Something went wrong. Please try again.',
-  //       variant: 'destructive',
-  //     });
-  //   }
-  // };
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
