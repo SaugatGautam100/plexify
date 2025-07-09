@@ -63,6 +63,7 @@ export const authOptions = {
       if (token.id) {
         session.user.id = token.id;
       }
+      
       if (token.phoneNumber) {
         session.user.phoneNumber = token.phoneNumber;
       }
