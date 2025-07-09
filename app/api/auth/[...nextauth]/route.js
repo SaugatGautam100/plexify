@@ -1,5 +1,5 @@
 import { connectMongoDB } from "@/lib/mongodb";
-import User from "@/models/user"; // Assuming your User model defines phone and address
+import User from "@/models/user";
 import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -27,19 +27,7 @@ export const authOptions = {
             return null; // Passwords do not match
           }
 
-          // IMPORTANT: Return a plain JavaScript object with the user data
-          // NextAuth.js will pick up these properties.
-          // Make sure to include the MongoDB _id as 'id' for NextAuth.js
-          return {
-            id: user._id.toString(), // Convert ObjectId to string
-            name: user.name, // Assuming you have a 'name' field
-            email: user.email,
-            phoneNumber: user.phoneNumber, // Include phoneNumber
-            address: user.address,       // Include address (assuming it's a string)
-            // You can add any other fields from your User model here
-            // e.g., image: user.profilePicture,
-            // e.g., role: user.role,
-          };
+          return user;
         } catch (error) {
           console.error("Error during authorization: ", error); // Use console.error for errors
           return null; // Return null on error

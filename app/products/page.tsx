@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Filter, Grid, List, SortAsc } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import ProductGrid from '@/components/product/product-grid';
-import { products, categories } from '@/lib/mock-data';
+import { categories } from '@/lib/mock-data';
+import { Product } from '@/types';
 
 export default function ProductsPage() {
   const searchParams = useSearchParams();
@@ -22,11 +23,37 @@ export default function ProductsPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [sortBy, setSortBy] = useState('featured');
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Update search query when URL parameter changes
   useEffect(() => {
     setSearchQuery(searchFromUrl);
   }, [searchFromUrl]);
+
+  // Fetch products from API
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      
+      const response = await fetch(`/api/products?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Get unique brands
   const brands = useMemo(() => {
@@ -243,7 +270,13 @@ export default function ProductsPage() {
           </div>
 
           {/* Products Grid */}
-          <ProductGrid products={filteredProducts} />
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Loading products...</p>
+            </div>
+          ) : (
+            <ProductGrid products={filteredProducts} />
+          )}
         </div>
       </div>
     </div>

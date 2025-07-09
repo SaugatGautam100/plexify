@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Filter, SortAsc } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import ProductGrid from '@/components/product/product-grid';
-import { products, categories } from '@/lib/mock-data';
-
-export async function generateStaticParams() {
-  return categories.map((category) => ({
-    slug: category.slug,
-  }));
-}
+import { categories } from '@/lib/mock-data';
+import { Product } from '@/types';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -27,16 +22,35 @@ export default function CategoryPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [sortBy, setSortBy] = useState('featured');
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Find the category
   const category = categories.find(cat => cat.slug === categorySlug);
 
   // Get products for this category
-  const categoryProducts = products.filter(product => 
-    product.category.toLowerCase().replace(/\s+/g, '-') === categorySlug ||
-    product.category.toLowerCase() === category?.name.toLowerCase()
-  );
+  const fetchProducts = useCallback(async () => {
+    if (!category) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/products?category=${category.name}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [category]);
 
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const categoryProducts = products;
   // Get unique brands for this category
   const brands = useMemo(() => {
     const uniqueBrands = [...new Set(categoryProducts.map(p => p.brand))];
@@ -273,7 +287,13 @@ export default function CategoryPage() {
           )}
 
           {/* Products Grid */}
-          <ProductGrid products={filteredProducts} />
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Loading products...</p>
+            </div>
+          ) : (
+            <ProductGrid products={filteredProducts} />
+          )}
 
           {/* No products message */}
           {categoryProducts.length === 0 && (
