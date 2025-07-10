@@ -40,7 +40,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Welcome to EcoStore
+              Welcome to Plexify
             </h1>
             <p className="text-xl md:text-2xl mb-8 opacity-90">
               Discover amazing products at unbeatable prices. Your one-stop shop for everything you need.

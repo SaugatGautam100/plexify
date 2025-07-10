@@ -73,7 +73,7 @@ export default function SellerDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{seller?.totalSales}</div>
+              <div className="text-2xl font-bold">{mockSeller?.totalSales}</div>
               <div className="text-2xl font-bold">{mockSeller?.totalSales}</div>
               <p className="text-xs text-muted-foreground">
                 All time sales

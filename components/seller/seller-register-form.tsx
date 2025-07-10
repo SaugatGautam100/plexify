@@ -24,8 +24,8 @@ const registerSchema = z.object({
     .min(1, "Email is required")
     .email("Invalid email address"),
   phone: z.string()
-    .min(10, "Phone number is required")
-    .max(10, "Phone must be at most 10 characters")
+    .min(10, "Phone number of 10 characters is required")
+    .max(10, "Phone must be 10 characters")
     .regex(/^\+?[0-9]{7,15}$/, "Invalid phone number format"), // Basic phone number regex
   businessName: z.string()
     .min(1, "Business Name is required")

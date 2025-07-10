@@ -61,9 +61,9 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
+              <span className="text-white font-bold text-lg">P</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">EcoStore</span>
+            <span className="text-xl font-bold text-gray-900">Plexify</span>
           </Link>
 
           {/* Search Bar - Desktop */}
@@ -98,7 +98,7 @@ export default function Header() {
               <Link href="/seller/login" className="hidden md:flex">
                 <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
                   <Store className="w-4 h-4 mr-2" />
-                  Sell on EcoStore
+                  Sell on Plexify
                 </Button>
               </Link>
             )}
@@ -194,7 +194,7 @@ export default function Header() {
                     <Link href="/seller/login" className="text-lg font-medium hover:text-blue-600">
                       <div className="flex items-center gap-2">
                         <Store className="w-5 h-5" />
-                        Sell on EcoStore
+                        Sell on Plexify
                       </div>
                     </Link>
                   )}

@@ -10,9 +10,9 @@ export default function Footer() {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">E</span>
+                <span className="text-white font-bold text-lg">P</span>
               </div>
-              <span className="text-xl font-bold">EcoStore</span>
+              <span className="text-xl font-bold">Plexify</span>
             </div>
             <p className="text-gray-400 mb-4">
               Your trusted online shopping destination for quality products at great prices.
@@ -103,15 +103,15 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <MapPin className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-400">123 Shopping St, NY 10001</span>
+                <span className="text-gray-400">Bhaktapur, Nepal</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-400">+1 (555) 123-4567</span>
+                <span className="text-gray-400">+977 9866294492</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-400">support@ecostore.com</span>
+                <span className="text-gray-400">support@plexify.com</span>
               </div>
             </div>
           </div>
@@ -119,7 +119,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © 2024 EcoStore. All rights reserved.
+            © 2024 Plexify. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
