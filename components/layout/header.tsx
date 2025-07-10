@@ -12,13 +12,23 @@ import { useCart } from '@/contexts/cart-context';
 import { useWishlist } from '@/contexts/wishlist-context';
 import { categories } from '@/lib/mock-data';
 import { useSession } from 'next-auth/react';
-import { signOut } from "next-auth/react";
-
-
+import { signOut } from 'next-auth/react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { getItemCount } = useCart();
   const { items: wishlistItems } = useWishlist();
   const router = useRouter();
@@ -27,12 +37,11 @@ export default function Header() {
 
   const { data: session, status } = useSession();
 
-  const isLoadingSession = status === "loading";
-  const isAuthenticated = status === "authenticated";
-  const isUnauthenticated = status === "unauthenticated";
-  const isSeller = session?.user?.userType === "seller";
-  const isUser = session?.user?.userType === "user";
-
+  const isLoadingSession = status === 'loading';
+  const isAuthenticated = status === 'authenticated';
+  const isUnauthenticated = status === 'unauthenticated';
+  const isSeller = session?.user?.userType === 'seller';
+  const isUser = session?.user?.userType === 'user';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +53,9 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    signOut();
+    const callbackUrl = isSeller ? '/seller/login' : '/login';
+    signOut({ callbackUrl });
+    setShowLogoutDialog(false);
   };
 
   return (
@@ -98,6 +109,7 @@ export default function Header() {
             )}
 
             {/* Wishlist */}
+            {!isSeller && (
             <Link href="/wishlist" className="relative">
               <Button variant="ghost" size="icon">
                 <Heart className="w-5 h-5" />
@@ -108,8 +120,10 @@ export default function Header() {
                 )}
               </Button>
             </Link>
+            )}
 
             {/* Cart */}
+            {!isSeller && (
             <Link href="/cart" className="relative">
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="w-5 h-5" />
@@ -120,6 +134,7 @@ export default function Header() {
                 )}
               </Button>
             </Link>
+            )}
 
             {/* User Menu */}
             <div className="relative">
@@ -132,9 +147,27 @@ export default function Header() {
                       <User className="w-5 h-5" />
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="sm" onClick={() => signOut()}>
-                    Logout
-                  </Button>
+                  <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        Logout
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to logout? You will need to login again to access your account.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleLogout}>
+                          Logout
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ) : (
                 <Link href="/login">
@@ -193,15 +226,17 @@ export default function Header() {
                   <Link href="/products" className="text-lg font-medium hover:text-blue-600">
                     All Products
                   </Link>
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/category/${category.slug}`}
-                      className="text-lg font-medium hover:text-blue-600"
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
+                  {!isSeller && (
+                    categories.map((category) => (
+                      <Link
+                        key={category.id}
+                        href={`/category/${category.slug}`}
+                        className="text-lg font-medium hover:text-blue-600"
+                      >
+                        {category.name}
+                      </Link>
+                    ))
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
@@ -210,18 +245,22 @@ export default function Header() {
 
         {/* Navigation - Desktop */}
         <nav className="hidden md:flex items-center space-x-8 py-4 border-t">
-          <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
-            All Products
-          </Link>
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/category/${category.slug}`}
-              className="text-sm font-medium hover:text-blue-600 transition-colors"
-            >
-              {category.name}
-            </Link>
-          ))}
+          {!isSeller && (
+            <>
+              <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
+                All Products
+              </Link>
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className="text-sm font-medium hover:text-blue-600 transition-colors"
+                >
+                  {category.name}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
       </div>
     </header>

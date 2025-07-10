@@ -5,10 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProductForm from '@/components/seller/product-form';
-import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 import { ProductFormData, Product } from '@/types';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 export default function EditProductPage() {
   const [product, setProduct] = useState<Product | null>(null);
@@ -17,6 +17,29 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
+  const { data: session, status } = useSession();
+
+  // Redirect if not authenticated or not a seller
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    
+    if (!session || session.user?.userType !== 'seller') {
+      router.push('/seller/login');
+      return;
+    }
+  }, [session, status, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session || session.user?.userType !== 'seller') {
+    return null; // Will redirect
+  }
 
   // Mock product data for demonstration
   const mockProduct = {

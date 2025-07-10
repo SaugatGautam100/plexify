@@ -7,7 +7,11 @@ import { Package, Plus, DollarSign, TrendingUp, Eye, ShoppingCart } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+
 import { useSeller } from '@/contexts/seller-context';
+
+import { useSession } from 'next-auth/react';
+
 
 export default function SellerDashboard() {
   const router = useRouter();
@@ -73,8 +77,7 @@ export default function SellerDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockSeller?.totalSales}</div>
-              <div className="text-2xl font-bold">{mockSeller?.totalSales}</div>
+              <div className="text-2xl font-bold">{seller?.totalSales || 0}</div>
               <p className="text-xs text-muted-foreground">
                 All time sales
               </p>
