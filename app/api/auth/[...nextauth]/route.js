@@ -1,5 +1,6 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/models/user";
+import Seller from "@/models/seller";
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -7,9 +8,13 @@ import bcrypt from "bcryptjs";
 export const authOptions = {
   providers: [
     CredentialsProvider({
-      name: "credentials",
-      credentials: {},
-
+      id: "user-credentials",
+      name: "User Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        userType: { label: "User Type", type: "hidden", value: "user" }
+      },
       async authorize(credentials) {
         const { email, password } = credentials;
 
@@ -18,19 +23,74 @@ export const authOptions = {
           const user = await User.findOne({ email });
 
           if (!user) {
-            return null; // User not found
+            return null;
           }
 
           const passwordsMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordsMatch) {
-            return null; // Passwords do not match
+            return null;
           }
 
-          return user;
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            userType: "user"
+          };
         } catch (error) {
-          console.error("Error during authorization: ", error); // Use console.error for errors
-          return null; // Return null on error
+          console.error("Error during user authorization: ", error);
+          return null;
+        }
+      },
+    }),
+    CredentialsProvider({
+      id: "seller-credentials", 
+      name: "Seller Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        userType: { label: "User Type", type: "hidden", value: "seller" }
+      },
+      async authorize(credentials) {
+        const { email, password } = credentials;
+
+        try {
+          await connectMongoDB();
+          const seller = await Seller.findOne({ email });
+
+          if (!seller) {
+            return null;
+          }
+
+          if (!seller.isActive) {
+            return null;
+          }
+
+          const passwordsMatch = await bcrypt.compare(password, seller.password);
+
+          if (!passwordsMatch) {
+            return null;
+          }
+
+          return {
+            id: seller._id.toString(),
+            name: seller.name,
+            email: seller.email,
+            phone: seller.phone,
+            businessName: seller.businessName,
+            businessAddress: seller.businessAddress,
+            description: seller.description,
+            rating: seller.rating,
+            totalSales: seller.totalSales,
+            isVerified: seller.isVerified,
+            userType: "seller"
+          };
+        } catch (error) {
+          console.error("Error during seller authorization: ", error);
+          return null;
         }
       },
     }),
@@ -40,46 +100,51 @@ export const authOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: "/",
+    signIn: "/login",
   },
-  // Add callbacks to pass custom data to the session
   callbacks: {
     async jwt({ token, user }) {
-      // 'user' is the object returned from the 'authorize' function above,
-      // it's only available on initial sign-in.
       if (user) {
         token.id = user.id;
-        token.phoneNumber = user.phoneNumber;
-        token.address = user.address;
-        // Add other fields you returned from authorize here
-        token.name = user.name; // Ensure name is also passed if not default
-        token.email = user.email; // Ensure email is also passed if not default
+        token.userType = user.userType;
+        token.name = user.name;
+        token.email = user.email;
+        
+        if (user.userType === "user") {
+          token.phone = user.phone;
+          token.address = user.address;
+        } else if (user.userType === "seller") {
+          token.phone = user.phone;
+          token.businessName = user.businessName;
+          token.businessAddress = user.businessAddress;
+          token.description = user.description;
+          token.rating = user.rating;
+          token.totalSales = user.totalSales;
+          token.isVerified = user.isVerified;
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      // The 'session' object is what gets returned by useSession() on the client.
-      // We populate it with data from the 'token'.
       if (token.id) {
         session.user.id = token.id;
-      }
-      
-      if (token.phoneNumber) {
-        session.user.phoneNumber = token.phoneNumber;
-      }
-      if (token.address) {
-        session.user.address = token.address;
-      }
-      // NextAuth usually populates session.user.name and .email automatically
-      // if they are present in the token. But explicitly ensuring them
-      // here doesn't hurt and clarifies intent.
-      if (token.name) {
+        session.user.userType = token.userType;
         session.user.name = token.name;
-      }
-      if (token.email) {
         session.user.email = token.email;
+        
+        if (token.userType === "user") {
+          session.user.phone = token.phone;
+          session.user.address = token.address;
+        } else if (token.userType === "seller") {
+          session.user.phone = token.phone;
+          session.user.businessName = token.businessName;
+          session.user.businessAddress = token.businessAddress;
+          session.user.description = token.description;
+          session.user.rating = token.rating;
+          session.user.totalSales = token.totalSales;
+          session.user.isVerified = token.isVerified;
+        }
       }
-
       return session;
     },
   },

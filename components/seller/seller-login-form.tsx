@@ -11,11 +11,12 @@ import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '../ui/toaster';
 
+import { signIn } from 'next-auth/react';
+
 export default function SellerLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useSeller();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -24,39 +25,23 @@ export default function SellerLoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/seller/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const res = await signIn("seller-credentials", {
+        email,
+        password,
+        redirect: false,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store seller data in context
-        login(data.seller);
-        
-        toast({
-          title: 'Success!',
-          description: 'Login successful. Welcome to your seller dashboard!',
-          variant: 'default',
-        });
-        
-        router.push('/seller/dashboard');
-      } else {
+      if (res?.error) {
         toast({
           title: 'Error',
-          description: data.message || 'Invalid credentials.',
+          description: 'Invalid Credentials.',
           variant: 'destructive',
         });
+        return;
       }
+
+      router.push('/seller/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
       toast({
         title: 'Error',
         description: 'Something went wrong. Please try again.',

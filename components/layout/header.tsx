@@ -9,9 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCart } from '@/contexts/cart-context';
-import { useAuth } from '@/contexts/auth-context';
 import { useWishlist } from '@/contexts/wishlist-context';
-import { useSeller } from '@/contexts/seller-context';
 import { categories } from '@/lib/mock-data';
 import { useSession } from 'next-auth/react';
 import { signOut } from "next-auth/react";
@@ -22,21 +20,18 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { getItemCount } = useCart();
-  const { user, logout } = useAuth();
   const { items: wishlistItems } = useWishlist();
-  const { seller, logout: sellerLogout } = useSeller();
   const router = useRouter();
 
   const cartItemCount = getItemCount();
 
   const { data: session, status } = useSession();
 
-  console.log("Session:", session);
-  console.log("Status:", status);
-
   const isLoadingSession = status === "loading";
   const isAuthenticated = status === "authenticated";
   const isUnauthenticated = status === "unauthenticated";
+  const isSeller = session?.user?.userType === "seller";
+  const isUser = session?.user?.userType === "user";
 
 
   const handleSearch = (e: React.FormEvent) => {
@@ -49,8 +44,7 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    logout();
-    sellerLogout();
+    signOut();
   };
 
   return (
@@ -84,17 +78,8 @@ export default function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* Seller Portal Link */}
-            
-
-            {/* Seller Dashboard Link */}
-            
-              {isAuthenticated ? (
-                   <div>
-                </div>
-              ) : (
-                <div>
-                  {!seller && (
+            {/* Seller Links */}
+            {!isAuthenticated && (
               <Link href="/seller/login" className="hidden md:flex">
                 <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
                   <Store className="w-4 h-4 mr-2" />
@@ -103,18 +88,14 @@ export default function Header() {
               </Link>
             )}
 
-                {seller && (
-
-                <Link href="/seller/dashboard" className="hidden md:flex">
+            {isSeller && (
+              <Link href="/seller/dashboard" className="hidden md:flex">
                 <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
                   <Store className="w-4 h-4 mr-2" />
                   Seller Dashboard
                 </Button>
               </Link>
-                )}
-                </div>
-              )}
-            
+            )}
 
             {/* Wishlist */}
             <Link href="/wishlist" className="relative">
@@ -146,7 +127,7 @@ export default function Header() {
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2">
                   
-                  <Link href={"/profile"}>
+                  <Link href={isSeller ? "/seller/profile" : "/profile"}>
                     <Button variant="ghost" size="icon">
                       <User className="w-5 h-5" />
                     </Button>
@@ -190,7 +171,7 @@ export default function Header() {
                   </div>
 
                   {/* Seller Portal Link - Mobile */}
-                  {!seller && (
+                  {!isAuthenticated && (
                     <Link href="/seller/login" className="text-lg font-medium hover:text-blue-600">
                       <div className="flex items-center gap-2">
                         <Store className="w-5 h-5" />
@@ -200,7 +181,7 @@ export default function Header() {
                   )}
 
                   {/* Seller Dashboard Link - Mobile */}
-                  {seller && (
+                  {isSeller && (
                     <Link href="/seller/dashboard" className="text-lg font-medium hover:text-green-600">
                       <div className="flex items-center gap-2">
                         <Store className="w-5 h-5" />
