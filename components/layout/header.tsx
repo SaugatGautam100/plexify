@@ -229,15 +229,15 @@ export default function Header() {
                     All Products
                   </Link>
                   {!isSeller && (
-                  categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/category/${category.slug}`}
-                      className="text-lg font-medium hover:text-blue-600"
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
+                    categories.map((category) => (
+                      <Link
+                        key={category.id}
+                        href={`/category/${category.slug}`}
+                        className="text-lg font-medium hover:text-blue-600"
+                      >
+                        {category.name}
+                      </Link>
+                    ))
                   )}
                 </div>
               </SheetContent>
@@ -249,18 +249,18 @@ export default function Header() {
         <nav className="hidden md:flex items-center space-x-8 py-4 border-t">
           {!isSeller && (
             <>
-          <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
-            All Products
-          </Link>
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/category/${category.slug}`}
-              className="text-sm font-medium hover:text-blue-600 transition-colors"
-            >
-              {category.name}
-            </Link>
-          ))}
+              <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
+                All Products
+              </Link>
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className="text-sm font-medium hover:text-blue-600 transition-colors"
+                >
+                  {category.name}
+                </Link>
+              ))}
             </>
           )}
         </nav>
