@@ -229,7 +229,7 @@ export default function Header() {
                     All Products
                   </Link>
                   {!isSeller && (
-                  {categories.map((category) => (
+                  categories.map((category) => (
                     <Link
                       key={category.id}
                       href={`/category/${category.slug}`}
