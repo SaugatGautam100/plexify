@@ -150,8 +150,5 @@ const authOptions = {
   },
 };
 
-async function handler(req, res) {
-  return await NextAuth(req, res, authOptions);
-}
-
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
