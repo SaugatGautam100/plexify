@@ -12,7 +12,7 @@ import { useCart } from '@/contexts/cart-context';
 import { useWishlist } from '@/contexts/wishlist-context';
 import { categories } from '@/lib/mock-data';
 import { useSession } from 'next-auth/react';
-import { signOut } from "next-auth/react";
+import { signOut } from 'next-auth/react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
-
+} from '@/components/ui/alert-dialog';
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,11 +37,11 @@ export default function Header() {
 
   const { data: session, status } = useSession();
 
-  const isLoadingSession = status === "loading";
-  const isAuthenticated = status === "authenticated";
-  const isUnauthenticated = status === "unauthenticated";
-  const isSeller = session?.user?.userType === "seller";
-  const isUser = session?.user?.userType === "user";
+  const isLoadingSession = status === 'loading';
+  const isAuthenticated = status === 'authenticated';
+  const isUnauthenticated = status === 'unauthenticated';
+  const isSeller = session?.user?.userType === 'seller';
+  const isUser = session?.user?.userType === 'user';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
