@@ -7,36 +7,18 @@ import { Package, Plus, DollarSign, TrendingUp, Eye, ShoppingCart } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useSeller } from '@/contexts/seller-context';
 
 export default function SellerDashboard() {
   const router = useRouter();
-  const { data: session, status } = useSession();
 
-  // Redirect if not authenticated or not a seller
-  useEffect(() => {
-    if (status === 'loading') return; // Still loading
-    
-    if (!session || session.user?.userType !== 'seller') {
-      router.push('/seller/login');
-      return;
-    }
-  }, [session, status, router]);
-
-  if (status === 'loading') {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!session || session.user?.userType !== 'seller') {
-    return null; // Will redirect
-  }
-
-  const seller = session.user;
+  // Mock seller data for demonstration
+  const mockSeller = {
+    name: 'John Seller',
+    isVerified: true,
+    rating: 4.5,
+    totalSales: 150
+  };
   
   const products = []; // Mock empty products array
   const totalProducts = products.length;
@@ -52,13 +34,13 @@ export default function SellerDashboard() {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-            <p className="text-gray-600 mt-2">Welcome back, {seller?.name}</p>
+            <p className="text-gray-600 mt-2">Welcome back, {mockSeller?.name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant={seller?.isVerified ? 'default' : 'secondary'}>
-                {seller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
+              <Badge variant={mockSeller?.isVerified ? 'default' : 'secondary'}>
+                {mockSeller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
               </Badge>
               <span className="text-sm text-gray-600">
-                Rating: {seller?.rating}/5 ⭐
+                Rating: {mockSeller?.rating}/5 ⭐
               </span>
             </div>
           </div>
@@ -118,7 +100,7 @@ export default function SellerDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{seller?.rating}/5</div>
+              <div className="text-2xl font-bold">{mockSeller?.rating}/5</div>
               <p className="text-xs text-muted-foreground">
                 Customer rating
               </p>
