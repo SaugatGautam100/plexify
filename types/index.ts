@@ -33,11 +33,21 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  address?: string;
+  userType?: 'user' | 'seller';
   avatar?: string;
   addresses: Address[];
   orders: Order[];
   wishlist: string[];
   createdAt: string;
+  // Seller-specific fields (when userType is 'seller')
+  businessName?: string;
+  businessAddress?: string;
+  description?: string;
+  rating?: number;
+  totalSales?: number;
+  isVerified?: boolean;
 }
 
 export interface Seller {
