@@ -8,13 +8,38 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function SellerProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Redirect if not authenticated or not a seller
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    
+    if (!session || session.user?.userType !== 'seller') {
+      router.push('/seller/login');
+      return;
+    }
+  }, [session, status, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session || session.user?.userType !== 'seller') {
+    return null; // Will redirect
+  }
 
   // Mock products data for demonstration
   const products = [

@@ -5,14 +5,39 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProductForm from '@/components/seller/product-form';
-import { useSeller } from '@/contexts/seller-context';
 import { useToast } from '@/hooks/use-toast';
 import { ProductFormData } from '@/types';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function AddProductPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Redirect if not authenticated or not a seller
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    
+    if (!session || session.user?.userType !== 'seller') {
+      router.push('/seller/login');
+      return;
+    }
+  }, [session, status, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session || session.user?.userType !== 'seller') {
+    return null; // Will redirect
+  }
 
   const handleSubmit = async (data: ProductFormData) => {
     try {

@@ -11,9 +11,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSession, signOut } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function SellerProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     businessName: '',
@@ -80,6 +93,7 @@ export default function SellerProfilePage() {
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/seller/login' });
+    setShowLogoutDialog(false);
   };
 
   return (
@@ -91,9 +105,27 @@ export default function SellerProfilePage() {
             <h1 className="text-3xl font-bold">Store Profile</h1>
             <p className="text-gray-600 mt-2">Manage your store information and settings</p>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
+          <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                Logout
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to logout from your seller account? You will need to login again to access your dashboard.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLogout}>
+                  Logout
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
