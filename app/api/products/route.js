@@ -70,13 +70,42 @@ export async function POST(req) {
       );
     }
 
+    // Check if user is a seller
+    if (session.user?.userType !== 'seller') {
+      return NextResponse.json(
+        { message: "Only sellers can add products" },
+        { status: 403 }
+      );
+    }
     await connectMongoDB();
     
     const productData = await req.json();
+
+    // Validate required fields
+    if (!productData.name || !productData.description || !productData.category || !productData.brand) {
+      return NextResponse.json(
+        { message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!productData.images || productData.images.length === 0) {
+      return NextResponse.json(
+        { message: "At least one product image is required" },
+        { status: 400 }
+      );
+    }
+
+    if (productData.price <= 0) {
+      return NextResponse.json(
+        { message: "Price must be greater than 0" },
+        { status: 400 }
+      );
+    }
     
     // Add seller information
     productData.sellerId = session.user.id;
-    productData.sellerName = session.user.name;
+    productData.sellerName = session.user.businessName || session.user.name;
     
     // Set inStock based on stockQuantity
     productData.inStock = productData.stockQuantity > 0;
@@ -86,6 +115,10 @@ export async function POST(req) {
       productData.image = productData.images[0];
     }
 
+    // Set default values
+    productData.rating = 0;
+    productData.reviews = 0;
+    productData.isActive = true;
     const product = await Product.create(productData);
     
     return NextResponse.json(
@@ -94,6 +127,16 @@ export async function POST(req) {
     );
   } catch (error) {
     console.error("Error creating product:", error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return NextResponse.json(
+        { message: "Validation error", errors: validationErrors },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { message: "Error creating product" },
       { status: 500 }

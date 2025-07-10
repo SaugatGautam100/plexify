@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Plus, Edit, Trash2, Eye } from 'lucide-react';
@@ -10,11 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function SellerProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -41,29 +41,29 @@ export default function SellerProductsPage() {
     return null; // Will redirect
   }
 
-  // Mock products data for demonstration
-  const products = [
-    {
-      id: '1',
-      name: 'Sample Product 1',
-      category: 'Electronics',
-      brand: 'SampleBrand',
-      price: 99.99,
-      inStock: true,
-      stockQuantity: 10,
-      image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=800'
-    },
-    {
-      id: '2',
-      name: 'Sample Product 2',
-      category: 'Fashion',
-      brand: 'FashionBrand',
-      price: 49.99,
-      inStock: false,
-      stockQuantity: 0,
-      image: 'https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg?auto=compress&cs=tinysrgb&w=800'
+  // Fetch seller's products
+  const fetchProducts = useCallback(async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/products?sellerId=${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      } else {
+        console.error('Failed to fetch products');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
   
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -73,11 +73,34 @@ export default function SellerProductsPage() {
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (confirm(`Are you sure you want to delete "${productName}"?`)) {
-      // Mock success for demonstration
-      toast({
-        title: 'Product deleted',
-        description: 'Product has been successfully deleted.',
-      });
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          toast({
+            title: 'Product deleted',
+            description: 'Product has been successfully deleted.',
+          });
+          // Refresh the products list
+          fetchProducts();
+        } else {
+          const data = await response.json();
+          toast({
+            title: 'Error',
+            description: data.message || 'Failed to delete product.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast({
+          title: 'Error',
+          description: 'Something went wrong. Please try again.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -109,7 +132,13 @@ export default function SellerProductsPage() {
         </div>
 
         {/* Products */}
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <Card>
+            <CardContent className="text-center py-16">
+              <p className="text-gray-500">Loading products...</p>
+            </CardContent>
+          </Card>
+        ) : filteredProducts.length === 0 ? (
           <Card>
             <CardContent className="text-center py-16">
               <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />

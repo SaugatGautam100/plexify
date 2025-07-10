@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,13 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 import { ProductFormData } from '@/types';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function AddProductPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if not authenticated or not a seller
   useEffect(() => {
@@ -40,19 +39,40 @@ export default function AddProductPage() {
   }
 
   const handleSubmit = async (data: ProductFormData) => {
+    setIsSubmitting(true);
     try {
-      // Mock success for demonstration
-      toast({
-        title: 'Product added successfully!',
-        description: 'Your product has been added to your store.',
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
       });
-      router.push('/seller/products');
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: 'Product added successfully!',
+          description: 'Your product has been added to your store.',
+        });
+        router.push('/seller/products');
+      } else {
+        toast({
+          title: 'Error',
+          description: result.message || 'Failed to add product. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
+      console.error('Error adding product:', error);
       toast({
         title: 'Error',
         description: 'Something went wrong. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -73,7 +93,11 @@ export default function AddProductPage() {
         </div>
 
         {/* Product Form */}
-        <ProductForm onSubmit={handleSubmit} submitLabel="Add Product" />
+        <ProductForm 
+          onSubmit={handleSubmit} 
+          submitLabel="Add Product" 
+          isLoading={isSubmitting}
+        />
       </div>
     </div>
   );
