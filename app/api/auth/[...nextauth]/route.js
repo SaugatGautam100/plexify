@@ -10,12 +10,12 @@ import bcrypt from "bcryptjs";
 const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: "589624218161-q6tsjt174gg78a5sgqhv159916eig618.apps.googleusercontent.com",
+      clientSecret: "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",
     }),
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      clientId: "Ov23li4MByRAUqA4Z3OF",
+      clientSecret: "1fe08dd410e612b554c780cf91467440b0fec610",
     }),
     CredentialsProvider({
       id: "user-credentials",
