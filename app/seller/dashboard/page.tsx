@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Plus, DollarSign, TrendingUp, Eye, ShoppingCart } from 'lucide-react';
@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-import { useSeller } from '@/contexts/seller-context';
 
 import { useSession } from 'next-auth/react';
 
 
 export default function SellerDashboard() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Mock seller data for demonstration
   const mockSeller = {
@@ -24,7 +26,52 @@ export default function SellerDashboard() {
     totalSales: 150
   };
   
-  const products = []; // Mock empty products array
+  // Redirect if not authenticated or not a seller
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    
+    if (!session || session.user?.userType !== 'seller') {
+      router.push('/seller/login');
+      return;
+    }
+  }, [session, status, router]);
+
+  // Fetch seller's products
+  const fetchProducts = useCallback(async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/products?sellerId=${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      } else {
+        console.error('Failed to fetch products');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session || session.user?.userType !== 'seller') {
+    return null; // Will redirect
+  }
+
   const totalProducts = products.length;
   const inStockProducts = products.filter(p => p.inStock).length;
   const totalRevenue = products.reduce((sum, p) => sum + (p.price * (p.stockQuantity || 0)), 0);
@@ -38,13 +85,13 @@ export default function SellerDashboard() {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-            <p className="text-gray-600 mt-2">Welcome back, {mockSeller?.name}</p>
+            <p className="text-gray-600 mt-2">Welcome back, {session?.user?.name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant={mockSeller?.isVerified ? 'default' : 'secondary'}>
-                {mockSeller?.isVerified ? 'Verified Seller' : 'Pending Verification'}
+              <Badge variant={session?.user?.isVerified ? 'default' : 'secondary'}>
+                {session?.user?.isVerified ? 'Verified Seller' : 'Pending Verification'}
               </Badge>
               <span className="text-sm text-gray-600">
-                Rating: {mockSeller?.rating}/5 ⭐
+                Rating: {session?.user?.rating || 0}/5 ⭐
               </span>
             </div>
           </div>
@@ -103,7 +150,7 @@ export default function SellerDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockSeller?.rating}/5</div>
+              <div className="text-2xl font-bold">{session?.user?.rating || 0}/5</div>
               <p className="text-xs text-muted-foreground">
                 Customer rating
               </p>
@@ -157,7 +204,11 @@ export default function SellerDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {products.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Loading products...</p>
+              </div>
+            ) : products.length === 0 ? (
               <div className="text-center py-8">
                 <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-semibold mb-2">No products yet</h3>

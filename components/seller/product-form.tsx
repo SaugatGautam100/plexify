@@ -110,14 +110,40 @@ export default function ProductForm({ onSubmit, initialData, isLoading, submitLa
     // Filter out empty images
     const filteredImages = formData.images.filter(img => img.trim() !== '');
     if (filteredImages.length === 0) {
-      alert('Please add at least one product image');
+      // You can use a toast here if available, or just return
+      console.error('Please add at least one product image');
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.name.trim()) {
+      console.error('Product name is required');
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      console.error('Product description is required');
+      return;
+    }
+
+    if (!formData.category) {
+      console.error('Product category is required');
+      return;
+    }
+
+    if (!formData.brand.trim()) {
+      console.error('Product brand is required');
+      return;
+    }
+
+    if (formData.price <= 0) {
+      console.error('Product price must be greater than 0');
       return;
     }
 
     const submitData = {
       ...formData,
       images: filteredImages,
-      inStock: formData.stockQuantity > 0,
     };
 
     await onSubmit(submitData);
