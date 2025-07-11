@@ -110,7 +110,7 @@ export default function Header() {
 
             {/* Wishlist */}
             {!isSeller && (
-            <Link href="/wishlist" className="relative">
+            <Link href="/wishlist" className="relative hidden md:block">
               <Button variant="ghost" size="icon">
                 <Heart className="w-5 h-5" />
                 {wishlistItems.length > 0 && (
@@ -124,7 +124,7 @@ export default function Header() {
 
             {/* Cart */}
             {!isSeller && (
-            <Link href="/cart" className="relative">
+            <Link href="/cart" className="relative hidden md:block">
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="w-5 h-5" />
                 {cartItemCount > 0 && (
@@ -236,6 +236,20 @@ export default function Header() {
                         {category.name}
                       </Link>
                     ))
+                  )}
+                  
+                  {/* Mobile Cart and Wishlist */}
+                  {!isSeller && (
+                    <>
+                      <Link href="/cart" className="text-lg font-medium hover:text-blue-600 flex items-center gap-2">
+                        <ShoppingCart className="w-5 h-5" />
+                        Cart {cartItemCount > 0 && `(${cartItemCount})`}
+                      </Link>
+                      <Link href="/wishlist" className="text-lg font-medium hover:text-blue-600 flex items-center gap-2">
+                        <Heart className="w-5 h-5" />
+                        Wishlist {wishlistItems.length > 0 && `(${wishlistItems.length})`}
+                      </Link>
+                    </>
                   )}
                 </div>
               </SheetContent>

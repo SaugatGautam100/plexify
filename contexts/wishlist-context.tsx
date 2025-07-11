@@ -34,6 +34,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   const addItem = (product: Product) => {
+    if (!product || !product.id) {
+      console.error('Invalid product data');
+      return;
+    }
+    
     setItems(currentItems => {
       const exists = currentItems.find(item => item.id === product.id);
       if (exists) return currentItems;

@@ -36,17 +36,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   const addItem = (product: Product, quantity: number = 1) => {
+    if (!product || !product.id) {
+      console.error('Invalid product data');
+      return;
+    }
+    
+    if (quantity <= 0) {
+      console.error('Invalid quantity');
+      return;
+    }
+    
     setItems(currentItems => {
       const existingItem = currentItems.find(item => item.id === product.id);
       
       if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity;
+        // Check stock limit
+        if (newQuantity > product.stockQuantity) {
+          console.warn('Cannot add more items than available in stock');
+          return currentItems.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: product.stockQuantity }
+              : item
+          );
+        }
         return currentItems.map(item =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: newQuantity }
             : item
         );
       }
 
+      // Check if requested quantity exceeds stock
+      const finalQuantity = Math.min(quantity, product.stockQuantity);
       return [...currentItems, { id: product.id, product, quantity }];
     });
   };

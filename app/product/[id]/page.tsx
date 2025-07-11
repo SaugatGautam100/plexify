@@ -14,6 +14,8 @@ import { useWishlist } from '@/contexts/wishlist-context';
 import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 import ProductGrid from '@/components/product/product-grid';
+import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
 
 export default function ProductPage() {
   const params = useParams();
@@ -27,6 +29,8 @@ export default function ProductPage() {
   
   const { addItem } = useCart();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
+  const { toast } = useToast();
+  const { data: session } = useSession();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -84,14 +88,55 @@ export default function ProductPage() {
     : 0;
 
   const handleAddToCart = () => {
+    // Check if user is a seller
+    if (session?.user?.userType === 'seller') {
+      toast({
+        title: 'Access Restricted',
+        description: 'Sellers cannot add items to cart. Please use a customer account.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!product.inStock) {
+      toast({
+        title: 'Out of Stock',
+        description: 'This product is currently out of stock.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     addItem(product, quantity);
+    toast({
+      title: 'Added to Cart',
+      description: `${quantity} ${quantity === 1 ? 'item' : 'items'} added to your cart.`,
+    });
   };
 
   const handleWishlistToggle = () => {
+    // Check if user is a seller
+    if (session?.user?.userType === 'seller') {
+      toast({
+        title: 'Access Restricted',
+        description: 'Sellers cannot add items to wishlist. Please use a customer account.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
+      toast({
+        title: 'Removed from Wishlist',
+        description: `${product.name} has been removed from your wishlist.`,
+      });
     } else {
       addToWishlist(product);
+      toast({
+        title: 'Added to Wishlist',
+        description: `${product.name} has been added to your wishlist.`,
+      });
     }
   };
 

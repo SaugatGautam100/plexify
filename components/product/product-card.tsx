@@ -11,6 +11,8 @@ import { Product } from '@/types';
 import { useCart } from '@/contexts/cart-context';
 import { useWishlist } from '@/contexts/wishlist-context';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +23,8 @@ export default function ProductCard({ product, className }: ProductCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const { addItem } = useCart();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
+  const { toast } = useToast();
+  const { data: session } = useSession();
 
   const isOnSale = product.originalPrice && product.originalPrice > product.price;
   const discountPercentage = isOnSale 
@@ -29,15 +33,60 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if user is a seller
+    if (session?.user?.userType === 'seller') {
+      toast({
+        title: 'Access Restricted',
+        description: 'Sellers cannot add items to cart. Please use a customer account.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!product.inStock) {
+      toast({
+        title: 'Out of Stock',
+        description: 'This product is currently out of stock.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     addItem(product);
+    toast({
+      title: 'Added to Cart',
+      description: `${product.name} has been added to your cart.`,
+    });
   };
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if user is a seller
+    if (session?.user?.userType === 'seller') {
+      toast({
+        title: 'Access Restricted',
+        description: 'Sellers cannot add items to wishlist. Please use a customer account.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
+      toast({
+        title: 'Removed from Wishlist',
+        description: `${product.name} has been removed from your wishlist.`,
+      });
     } else {
       addToWishlist(product);
+      toast({
+        title: 'Added to Wishlist',
+        description: `${product.name} has been added to your wishlist.`,
+      });
     }
   };
 
