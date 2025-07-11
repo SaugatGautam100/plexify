@@ -9,8 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ProductFormData } from '@/types';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function AddProductPage() {
   const { toast } = useToast();

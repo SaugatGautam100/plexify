@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSession, signOut } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+
 import {
   AlertDialog,
   AlertDialogAction,
