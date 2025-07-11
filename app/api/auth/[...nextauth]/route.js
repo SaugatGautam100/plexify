@@ -3,10 +3,20 @@ import User from "@/models/user";
 import Seller from "@/models/seller";
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcryptjs";
 
 const authOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    }),
     CredentialsProvider({
       id: "user-credentials",
       name: "User Login",
@@ -103,7 +113,49 @@ const authOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      if (account.provider === "google" || account.provider === "github") {
+        try {
+          await connectMongoDB();
+          
+          // Check if user exists in either User or Seller collection
+          const existingUser = await User.findOne({ email: user.email });
+          const existingSeller = await Seller.findOne({ email: user.email });
+          
+          if (!existingUser && !existingSeller) {
+            // Create new user account by default for social login
+            await User.create({
+              name: user.name,
+              email: user.email,
+              phone: "", // Will be filled later
+              address: "", // Will be filled later
+              password: "", // No password for social login
+            });
+            
+            // Set user type for the session
+            user.userType = "user";
+          } else if (existingUser) {
+            user.userType = "user";
+            user.phone = existingUser.phone;
+            user.address = existingUser.address;
+          } else if (existingSeller) {
+            user.userType = "seller";
+            user.phone = existingSeller.phone;
+            user.businessName = existingSeller.businessName;
+            user.businessAddress = existingSeller.businessAddress;
+            user.description = existingSeller.description;
+            user.rating = existingSeller.rating;
+            user.totalSales = existingSeller.totalSales;
+            user.isVerified = existingSeller.isVerified;
+          }
+        } catch (error) {
+          console.error("Error during social sign in:", error);
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.userType = user.userType;
@@ -151,4 +203,4 @@ const authOptions = {
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST, authOptions };
