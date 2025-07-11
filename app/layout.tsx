@@ -13,7 +13,7 @@ import Footer from '@/components/layout/footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EcoStore - Your Online Shopping Destination',
+  title: 'Plexify - Your Online Shopping Destination for Plex Number of Products with Quality and Value',
   description: 'Discover quality products at great prices. Shop electronics, fashion, home & garden, and more.',
 };
 

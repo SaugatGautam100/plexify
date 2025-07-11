@@ -13,6 +13,7 @@ import { useWishlist } from '@/contexts/wishlist-context';
 import { categories } from '@/lib/mock-data';
 import { useSession } from 'next-auth/react';
 import { signOut } from 'next-auth/react';
+import logo_black from "@/public/logo_white.png"; 
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import Image from 'next/image';
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,10 +67,8 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">P</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">Plexify</span>
+           
+            <span className="text-xl font-bold text-gray-900"><Image src={logo_black} alt='logo_black' width={100} height={100}/></span>
           </Link>
 
           {/* Search Bar - Desktop */}

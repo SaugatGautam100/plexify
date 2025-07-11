@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import logo_white from "@/public/logo_black.png";
 
 export default function Footer() {
   return (
@@ -9,10 +11,8 @@ export default function Footer() {
           {/* Company Info */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">P</span>
-              </div>
-              <span className="text-xl font-bold">Plexify</span>
+             
+              <span><Image src={logo_white} alt='logo_white' width={100} height={100}/></span>
             </div>
             <p className="text-gray-400 mb-4">
               Your trusted online shopping destination for quality products at great prices.
