@@ -18,7 +18,13 @@ export async function GET(req, { params }) {
       );
     }
 
-    return NextResponse.json({ product });
+    // Transform product to include id field
+    const transformedProduct = {
+      ...product,
+      id: product._id.toString(),
+    };
+
+    return NextResponse.json({ product: transformedProduct });
   } catch (error) {
     console.error("Error fetching product:", error);
     return NextResponse.json(

@@ -14,81 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 
 import AvatarUpload from '@/components/profile/avatar-upload';
 
-// Mock user data - replace with actual user context
-const mockUser = {
-  id: '1',
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '+1 (555) 123-4567',
-  avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150',
-  dateOfBirth: '1990-05-15',
-  gender: 'Select a Gender',
-  bio: 'Write your bio here.',
-  addresses: [
-    {
-      id: '1',
-      type: 'home',
-      name: 'Home Address',
-      street: '123 Main Street',
-      city: 'New York',
-      state: 'NY',
-      zipCode: '10001',
-      country: 'USA',
-      isDefault: true,
-    },
-    {
-      id: '2',
-      type: 'work',
-      name: 'Work Address',
-      street: '456 Business Ave',
-      city: 'New York',
-      state: 'NY',
-      zipCode: '10002',
-      country: 'USA',
-      isDefault: false,
-    },
-  ],
-  orders: [
-    {
-      id: 'ORD-001',
-      date: '2024-01-15',
-      status: 'delivered',
-      total: 299.99,
-      items: 3,
-    },
-    {
-      id: 'ORD-002',
-      date: '2024-01-10',
-      status: 'shipped',
-      total: 149.50,
-      items: 2,
-    },
-    {
-      id: 'ORD-003',
-      date: '2024-01-05',
-      status: 'processing',
-      total: 89.99,
-      items: 1,
-    },
-  ],
-  preferences: {
-    newsletter: true,
-    smsNotifications: false,
-    emailNotifications: true,
-    orderUpdates: true,
-    promotions: true,
-  },
-  createdAt: '2023-06-15',
-};
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(mockUser);
+  const [user, setUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [showAddressDialog, setShowAddressDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [newAddress, setNewAddress] = useState({
     type: 'home',
     name: '',
@@ -100,6 +36,34 @@ export default function ProfilePage() {
     isDefault: false,
   });
   const { toast } = useToast();
+
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session || session.user?.userType !== 'user') {
+      router.push('/login');
+      return;
+    }
+
+    fetchUserProfile();
+  }, [session, status]);
+
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/users/profile');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleProfileUpdate = (field, value) => {
     setUser(prev => ({ ...prev, [field]: value }));
@@ -116,12 +80,36 @@ export default function ProfilePage() {
     }));
   };
 
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been successfully updated.',
-    });
+  const handleSaveProfile = async () => {
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(user),
+      });
+
+      if (response.ok) {
+        setIsEditing(false);
+        toast({
+          title: 'Profile updated',
+          description: 'Your profile has been successfully updated.',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to update profile. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAddAddress = () => {
@@ -198,6 +186,21 @@ export default function ProfilePage() {
 
     const { data: session, status } = useSession();
   
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Profile not found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -205,14 +208,14 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="flex items-center gap-6 mb-8">
           <AvatarUpload
-            currentAvatar={user.avatar}
+            currentAvatar={user.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150'}
             onAvatarUpdate={handleAvatarUpdate}
-            userName={user.name}
+            userName={user.name || session?.user?.name}
           />
           <div className="flex-1">
             <h1 className="text-3xl font-bold">{session?.user?.name}</h1>
             <p className="text-gray-600">{session?.user?.email}</p>
-            <p className="text-sm text-gray-500">Member since {new Date(user.createdAt).getFullYear()}</p>
+            <p className="text-sm text-gray-500">Member since {new Date(user.createdAt || '2024-01-01').getFullYear()}</p>
           </div>
           <Button
             variant={isEditing ? "outline" : "default"}

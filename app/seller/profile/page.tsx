@@ -84,11 +84,39 @@ export default function SellerProfilePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditing(false);
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been successfully updated.',
-    });
+    updateSellerProfile();
+  };
+
+  const updateSellerProfile = async () => {
+    try {
+      const response = await fetch('/api/sellers/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setIsEditing(false);
+        toast({
+          title: 'Profile updated',
+          description: 'Your profile has been successfully updated.',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to update profile. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleLogout = () => {

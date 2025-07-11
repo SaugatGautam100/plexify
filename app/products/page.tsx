@@ -25,6 +25,9 @@ export default function ProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Update search query when URL parameter changes
   useEffect(() => {
@@ -32,29 +35,49 @@ export default function ProductsPage() {
   }, [searchFromUrl]);
 
   // Fetch products from API
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (page = 1, append = false) => {
     try {
-      setIsLoading(true);
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+      
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      params.append('page', page.toString());
+      params.append('limit', '12');
       
       const response = await fetch(`/api/products?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products || []);
+        if (append && page > 1) {
+          setProducts(prev => [...prev, ...(data.products || [])]);
+        } else {
+          setProducts(data.products || []);
+        }
+        setTotalPages(data.pagination?.pages || 1);
+        setCurrentPage(page);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [searchQuery, selectedCategory]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    setCurrentPage(1);
+    fetchProducts(1, false);
+  }, [searchQuery, selectedCategory, sortBy]);
 
+  const loadMoreProducts = () => {
+    if (currentPage < totalPages && !isLoadingMore) {
+      fetchProducts(currentPage + 1, true);
+    }
+  };
   // Get unique brands
   const brands = useMemo(() => {
     const uniqueBrands = [...new Set(products.map(p => p.brand))];
@@ -275,7 +298,28 @@ export default function ProductsPage() {
               <p className="text-gray-500">Loading products...</p>
             </div>
           ) : (
-            <ProductGrid products={filteredProducts} />
+            <>
+              <ProductGrid products={filteredProducts} />
+              
+              {/* Load More Button */}
+              {currentPage < totalPages && (
+                <div className="text-center mt-8">
+                  <Button 
+                    onClick={loadMoreProducts} 
+                    disabled={isLoadingMore}
+                    variant="outline"
+                    size="lg"
+                  >
+                    {isLoadingMore ? 'Loading...' : 'Load More Products'}
+                  </Button>
+                </div>
+              )}
+              
+              {/* Pagination Info */}
+              <div className="text-center mt-4 text-sm text-gray-600">
+                Showing {products.length} of {totalPages * 12} products
+              </div>
+            </>
           )}
         </div>
       </div>

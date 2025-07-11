@@ -29,16 +29,58 @@ export default function CheckoutPage() {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const formData = new FormData(e.target as HTMLFormElement);
+      
+      const orderData = {
+        items: items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity
+        })),
+        paymentMethod: paymentMethod === 'card' ? 'Credit Card' : 'PayPal',
+        shippingAddress: {
+          firstName: formData.get('firstName') as string,
+          lastName: formData.get('lastName') as string,
+          address: formData.get('address') as string,
+          city: formData.get('city') as string,
+          state: formData.get('state') as string,
+          zipCode: formData.get('zipCode') as string,
+        }
+      };
 
-    toast({
-      title: 'Order placed successfully!',
-      description: 'You will receive a confirmation email shortly.',
-    });
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
 
-    clearCart();
-    router.push('/account/orders');
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: 'Order placed successfully!',
+          description: `Order ${result.order.orderNumber} has been created.`,
+        });
+        clearCart();
+        router.push('/profile/orders');
+      } else {
+        toast({
+          title: 'Order failed',
+          description: result.message || 'Failed to place order. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (items.length === 0) {
@@ -75,29 +117,29 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" required />
+                    <Input id="firstName" name="firstName" required />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" required />
+                    <Input id="lastName" name="lastName" required />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="address">Address</Label>
-                  <Input id="address" required />
+                  <Input id="address" name="address" required />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="city">City</Label>
-                    <Input id="city" required />
+                    <Input id="city" name="city" required />
                   </div>
                   <div>
                     <Label htmlFor="state">State</Label>
-                    <Input id="state" required />
+                    <Input id="state" name="state" required />
                   </div>
                   <div>
                     <Label htmlFor="zipCode">ZIP Code</Label>
-                    <Input id="zipCode" required />
+                    <Input id="zipCode" name="zipCode" required />
                   </div>
                 </div>
               </CardContent>

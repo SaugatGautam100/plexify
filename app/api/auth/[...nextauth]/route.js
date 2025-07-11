@@ -122,24 +122,14 @@ const authOptions = {
           const existingUser = await User.findOne({ email: user.email });
           const existingSeller = await Seller.findOne({ email: user.email });
           
-          if (!existingUser && !existingSeller) {
-            // Create new user account by default for social login
-            await User.create({
-              name: user.name,
-              email: user.email,
-              phone: "", // Will be filled later
-              address: "", // Will be filled later
-              password: "", // No password for social login
-            });
-            
-            // Set user type for the session
+          if (existingUser) {
             user.userType = "user";
-          } else if (existingUser) {
-            user.userType = "user";
+            user.id = existingUser._id.toString();
             user.phone = existingUser.phone;
             user.address = existingUser.address;
           } else if (existingSeller) {
             user.userType = "seller";
+            user.id = existingSeller._id.toString();
             user.phone = existingSeller.phone;
             user.businessName = existingSeller.businessName;
             user.businessAddress = existingSeller.businessAddress;
@@ -147,6 +137,10 @@ const authOptions = {
             user.rating = existingSeller.rating;
             user.totalSales = existingSeller.totalSales;
             user.isVerified = existingSeller.isVerified;
+          } else {
+            // User doesn't exist, need to complete registration
+            // This will be handled by the frontend
+            user.needsRegistration = true;
           }
         } catch (error) {
           console.error("Error during social sign in:", error);

@@ -13,12 +13,14 @@ export async function GET(req) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const sellerId = searchParams.get('sellerId');
-    const limit = parseInt(searchParams.get('limit')) || 50;
+    const limit = parseInt(searchParams.get('limit')) || 12;
     const page = parseInt(searchParams.get('page')) || 1;
     const skip = (page - 1) * limit;
+    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     // Build query
-    let query = { isActive: true };
+    let query = { isActive: true, inStock: true };
     
     if (category && category !== 'all') {
       query.category = category;
@@ -26,22 +28,46 @@ export async function GET(req) {
     
     if (sellerId) {
       query.sellerId = sellerId;
+      // For seller's own products, show all including out of stock
+      delete query.inStock;
     }
     
     if (search) {
       query.$text = { $search: search };
     }
 
+    // Build sort object
+    let sortObj = {};
+    switch (sortBy) {
+      case 'price':
+        sortObj.price = sortOrder === 'asc' ? 1 : -1;
+        break;
+      case 'rating':
+        sortObj.rating = -1;
+        break;
+      case 'name':
+        sortObj.name = sortOrder === 'asc' ? 1 : -1;
+        break;
+      default:
+        sortObj.createdAt = -1;
+    }
+
     const products = await Product.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sortObj)
       .limit(limit)
       .skip(skip)
       .lean();
 
     const total = await Product.countDocuments(query);
 
+    // Transform products to include id field
+    const transformedProducts = products.map(product => ({
+      ...product,
+      id: product._id.toString(),
+    }));
+
     return NextResponse.json({
-      products,
+      products: transformedProducts,
       pagination: {
         page,
         limit,
