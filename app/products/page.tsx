@@ -28,6 +28,7 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
 
   // Update search query when URL parameter changes
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function ProductsPage() {
       const response = await fetch(`/api/products?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
+        setBrands(data.brands || []);
         if (append && page > 1) {
           setProducts(prev => [...prev, ...(data.products || [])]);
         } else {
@@ -78,12 +80,6 @@ export default function ProductsPage() {
       fetchProducts(currentPage + 1, true);
     }
   };
-  // Get unique brands
-  const brands = useMemo(() => {
-    const uniqueBrands = [...new Set(products.map(p => p.brand))];
-    return uniqueBrands.sort();
-  }, []);
-
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(product => {
@@ -307,7 +303,6 @@ export default function ProductsPage() {
                   <Button 
                     onClick={loadMoreProducts} 
                     disabled={isLoadingMore}
-                    variant="outline"
                     size="lg"
                   >
                     {isLoadingMore ? 'Loading...' : 'Load More Products'}
@@ -317,7 +312,7 @@ export default function ProductsPage() {
               
               {/* Pagination Info */}
               <div className="text-center mt-4 text-sm text-gray-600">
-                Showing {products.length} of {totalPages * 12} products
+                Page {currentPage} of {totalPages} • Showing {filteredProducts.length} products
               </div>
             </>
           )}

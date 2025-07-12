@@ -217,6 +217,7 @@ export default function SellerOrdersPage() {
                                   name="cancellationReason"
                                   placeholder="Reason for cancellation"
                                   defaultValue={order.cancellationReason || ''}
+                                  rows={3}
                                 />
                               </div>
 
@@ -275,7 +276,9 @@ export default function SellerOrdersPage() {
                       {order.status === 'cancelled' && (
                         <div className="flex items-center gap-2 text-sm text-red-600">
                           <XCircle className="w-4 h-4" />
-                          <span>Cancelled: {order.cancellationReason || 'No reason provided'}</span>
+                          <span>
+                            Cancelled{order.cancelledAt && ` on ${new Date(order.cancelledAt).toLocaleDateString()}`}: {order.cancellationReason || 'No reason provided'}
+                          </span>
                         </div>
                       )}
                     </div>

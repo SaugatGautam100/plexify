@@ -9,11 +9,14 @@ import { signIn } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '../ui/toaster';
+import GoogleSignupModal from './google-signup-modal';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showGoogleSignup, setShowGoogleSignup] = useState(false);
+  const [pendingGoogleUser, setPendingGoogleUser] = useState(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -52,8 +55,17 @@ export default function LoginForm() {
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/" });
+      const result = await signIn("google", { redirect: false });
+      
+      if (result?.error) {
+        toast({
+          title: 'Error',
+          description: 'Google login failed. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
+      console.error('Google login error:', error);
       toast({
         title: 'Error',
         description: 'Google login failed. Please try again.',
@@ -66,7 +78,15 @@ export default function LoginForm() {
   const handleGithubLogin = async () => {
     setIsLoading(true);
     try {
-      await signIn("github", { callbackUrl: "/" });
+      const result = await signIn("github", { redirect: false });
+      
+      if (result?.error) {
+        toast({
+          title: 'Error',
+          description: 'GitHub login failed. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -180,6 +200,16 @@ export default function LoginForm() {
           </Button>
         </div>
       </CardContent>
+      
+      <GoogleSignupModal
+        isOpen={showGoogleSignup}
+        onClose={() => {
+          setShowGoogleSignup(false);
+          setPendingGoogleUser(null);
+        }}
+        userInfo={pendingGoogleUser || { name: '', email: '' }}
+      />
+      
       <Toaster />
     </Card>
   );

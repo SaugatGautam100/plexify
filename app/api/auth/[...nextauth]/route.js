@@ -139,7 +139,6 @@ const authOptions = {
             user.isVerified = existingSeller.isVerified;
           } else {
             // User doesn't exist, need to complete registration
-            // This will be handled by the frontend
             user.needsRegistration = true;
           }
         } catch (error) {
@@ -155,6 +154,7 @@ const authOptions = {
         token.userType = user.userType;
         token.name = user.name;
         token.email = user.email;
+        token.needsRegistration = user.needsRegistration;
         
         if (user.userType === "user") {
           token.phone = user.phone;
@@ -177,6 +177,7 @@ const authOptions = {
         session.user.userType = token.userType;
         session.user.name = token.name;
         session.user.email = token.email;
+        session.user.needsRegistration = token.needsRegistration;
         
         if (token.userType === "user") {
           session.user.phone = token.phone;

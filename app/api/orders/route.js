@@ -1,6 +1,8 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/models/order";
 import Product from "@/models/product";
+import User from "@/models/user";
+import Seller from "@/models/seller";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
@@ -23,6 +25,7 @@ export async function GET(req) {
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
     const skip = (page - 1) * limit;
+    const status = searchParams.get('status');
 
     let query = {};
     
@@ -33,6 +36,11 @@ export async function GET(req) {
       query['items.sellerId'] = session.user.id;
     }
 
+    // Add status filter if provided
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
     const orders = await Order.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -41,13 +49,26 @@ export async function GET(req) {
 
     const total = await Order.countDocuments(query);
 
+    // Transform orders to include proper id field
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      id: order._id.toString(),
+      items: order.items.map(item => ({
+        ...item,
+        productId: item.productId.toString(),
+        sellerId: item.sellerId.toString(),
+      }))
+    }));
+
     return NextResponse.json({
-      orders,
+      orders: transformedOrders,
       pagination: {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
       }
     });
   } catch (error) {
@@ -154,8 +175,49 @@ export async function POST(req) {
       paymentStatus: 'paid',
     });
 
+    // Update user's order history
+    await User.findByIdAndUpdate(session.user.id, {
+      $push: { orderHistory: order._id }
+    });
+
+    // Update sellers' order history and sales
+    const sellerUpdates = {};
+    for (const item of orderItems) {
+      const sellerId = item.sellerId.toString();
+      if (!sellerUpdates[sellerId]) {
+        sellerUpdates[sellerId] = {
+          orderValue: 0,
+          itemCount: 0
+        };
+      }
+      sellerUpdates[sellerId].orderValue += item.price * item.quantity;
+      sellerUpdates[sellerId].itemCount += item.quantity;
+    }
+
+    // Update each seller's statistics
+    for (const [sellerId, stats] of Object.entries(sellerUpdates)) {
+      await Seller.findByIdAndUpdate(sellerId, {
+        $inc: { 
+          totalSales: stats.itemCount,
+          totalRevenue: stats.orderValue 
+        },
+        $push: { orderHistory: order._id }
+      });
+    }
+
+    // Transform response
+    const responseOrder = {
+      ...order.toObject(),
+      id: order._id.toString(),
+      items: order.items.map(item => ({
+        ...item,
+        productId: item.productId.toString(),
+        sellerId: item.sellerId.toString(),
+      }))
+    };
+
     return NextResponse.json(
-      { message: "Order created successfully", order },
+      { message: "Order created successfully", order: responseOrder },
       { status: 201 }
     );
   } catch (error) {

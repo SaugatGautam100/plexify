@@ -45,7 +45,18 @@ export async function GET(req, { params }) {
       }
     }
 
-    return NextResponse.json({ order });
+    // Transform order
+    const transformedOrder = {
+      ...order,
+      id: order._id.toString(),
+      items: order.items.map(item => ({
+        ...item,
+        productId: item.productId.toString(),
+        sellerId: item.sellerId.toString(),
+      }))
+    };
+
+    return NextResponse.json({ order: transformedOrder });
   } catch (error) {
     console.error("Error fetching order:", error);
     return NextResponse.json(
@@ -89,6 +100,15 @@ export async function PUT(req, { params }) {
 
     const updateData = await req.json();
     
+    // Validate status transitions
+    const validStatuses = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (updateData.status && !validStatuses.includes(updateData.status)) {
+      return NextResponse.json(
+        { message: "Invalid status" },
+        { status: 400 }
+      );
+    }
+
     // Update allowed fields
     const allowedUpdates = ['status', 'trackingNumber', 'deliveryPartner', 'estimatedDelivery', 'cancellationReason'];
     const updates = {};
@@ -104,6 +124,19 @@ export async function PUT(req, { params }) {
       updates.deliveredAt = new Date();
     } else if (updateData.status === 'cancelled') {
       updates.cancelledAt = new Date();
+      if (!updateData.cancellationReason) {
+        return NextResponse.json(
+          { message: "Cancellation reason is required when cancelling an order" },
+          { status: 400 }
+        );
+      }
+    } else if (updateData.status === 'shipped') {
+      if (!updateData.trackingNumber) {
+        return NextResponse.json(
+          { message: "Tracking number is required when marking order as shipped" },
+          { status: 400 }
+        );
+      }
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(
@@ -112,9 +145,20 @@ export async function PUT(req, { params }) {
       { new: true, runValidators: true }
     );
 
+    // Transform response
+    const responseOrder = {
+      ...updatedOrder.toObject(),
+      id: updatedOrder._id.toString(),
+      items: updatedOrder.items.map(item => ({
+        ...item,
+        productId: item.productId.toString(),
+        sellerId: item.sellerId.toString(),
+      }))
+    };
+
     return NextResponse.json({
       message: "Order updated successfully",
-      order: updatedOrder
+      order: responseOrder
     });
   } catch (error) {
     console.error("Error updating order:", error);
