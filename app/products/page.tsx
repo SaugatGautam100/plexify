@@ -29,6 +29,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [brands, setBrands] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Update search query when URL parameter changes
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function ProductsPage() {
     try {
       if (page === 1) {
         setIsLoading(true);
+        setError(null);
       } else {
         setIsLoadingMore(true);
       }
@@ -47,93 +49,72 @@ export default function ProductsPage() {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      if (sortBy !== 'featured') {
+        params.append('sortBy', sortBy);
+        params.append('sortOrder', sortBy === 'price-low' ? 'asc' : 'desc');
+      }
       params.append('page', page.toString());
       params.append('limit', '12');
       
+      console.log('Fetching products with params:', params.toString());
+      
       const response = await fetch(`/api/products?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBrands(data.brands || []);
-        if (append && page > 1) {
-          setProducts(prev => [...prev, ...(data.products || [])]);
-        } else {
-          setProducts(data.products || []);
-        }
-        setTotalPages(data.pagination?.pages || 1);
-        setCurrentPage(page);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log('Products API response:', data);
+      
+      setBrands(data.brands || []);
+      
+      if (append && page > 1) {
+        setProducts(prev => [...prev, ...(data.products || [])]);
+      } else {
+        setProducts(data.products || []);
+      }
+      
+      setTotalPages(data.pagination?.pages || 1);
+      setCurrentPage(page);
+      
     } catch (error) {
       console.error('Error fetching products:', error);
+      setError('Failed to load products. Please try again.');
+      setProducts([]);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, sortBy]);
 
   useEffect(() => {
     setCurrentPage(1);
     fetchProducts(1, false);
-  }, [searchQuery, selectedCategory, sortBy]);
+  }, [fetchProducts]);
 
   const loadMoreProducts = () => {
     if (currentPage < totalPages && !isLoadingMore) {
       fetchProducts(currentPage + 1, true);
     }
   };
-  // Filter and sort products
+
+  // Client-side filtering for additional filters not handled by API
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        if (!product.name.toLowerCase().includes(query) &&
-            !product.description.toLowerCase().includes(query) &&
-            !product.brand.toLowerCase().includes(query) &&
-            !product.category.toLowerCase().includes(query) &&
-            !product.tags.some(tag => tag.toLowerCase().includes(query))) {
-          return false;
-        }
-      }
+    let filtered = [...products];
 
-      // Category filter
-      if (selectedCategory && selectedCategory !== 'all' && product.category !== selectedCategory) {
-        return false;
-      }
-
-      // Brand filter
-      if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
-        return false;
-      }
-
-      // Price filter
-      if (product.price < priceRange[0] || product.price > priceRange[1]) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // Sort products
-    switch (sortBy) {
-      case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-      default:
-        // Featured - no sorting needed
-        break;
+    // Brand filter (client-side)
+    if (selectedBrands.length > 0) {
+      filtered = filtered.filter(product => selectedBrands.includes(product.brand));
     }
 
+    // Price filter (client-side)
+    filtered = filtered.filter(product => 
+      product.price >= priceRange[0] && product.price <= priceRange[1]
+    );
+
     return filtered;
-  }, [searchQuery, selectedCategory, selectedBrands, priceRange, sortBy]);
+  }, [products, selectedBrands, priceRange]);
 
   const handleBrandToggle = (brand: string) => {
     setSelectedBrands(prev =>
@@ -174,23 +155,25 @@ export default function ProductsPage() {
       </div>
 
       {/* Brand Filter */}
-      <div>
-        <h3 className="font-semibold mb-3">Brand</h3>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {brands.map(brand => (
-            <div key={brand} className="flex items-center space-x-2">
-              <Checkbox
-                id={brand}
-                checked={selectedBrands.includes(brand)}
-                onCheckedChange={() => handleBrandToggle(brand)}
-              />
-              <label htmlFor={brand} className="text-sm">
-                {brand}
-              </label>
-            </div>
-          ))}
+      {brands.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3">Brand</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {brands.map(brand => (
+              <div key={brand} className="flex items-center space-x-2">
+                <Checkbox
+                  id={brand}
+                  checked={selectedBrands.includes(brand)}
+                  onCheckedChange={() => handleBrandToggle(brand)}
+                />
+                <label htmlFor={brand} className="text-sm">
+                  {brand}
+                </label>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Price Range */}
       <div>
@@ -288,32 +271,84 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Products Grid */}
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+              {error}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchProducts(1, false)}
+                className="ml-4"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {/* Loading State */}
           {isLoading ? (
             <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-500">Loading products...</p>
             </div>
           ) : (
             <>
+              {/* Products Grid */}
               <ProductGrid products={filteredProducts} />
               
+              {/* No Products Message */}
+              {filteredProducts.length === 0 && products.length === 0 && !error && (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-semibold mb-2">No products found</h3>
+                  <p className="text-gray-600">Try adjusting your search criteria or check back later.</p>
+                </div>
+              )}
+              
+              {/* Filtered Results Empty */}
+              {filteredProducts.length === 0 && products.length > 0 && (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-semibold mb-2">No products match your filters</h3>
+                  <p className="text-gray-600">Try adjusting your filters to see more results.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedBrands([]);
+                      setPriceRange([0, 5000]);
+                    }}
+                    className="mt-4"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+              
               {/* Load More Button */}
-              {currentPage < totalPages && (
+              {currentPage < totalPages && filteredProducts.length > 0 && (
                 <div className="text-center mt-8">
                   <Button 
                     onClick={loadMoreProducts} 
                     disabled={isLoadingMore}
                     size="lg"
                   >
-                    {isLoadingMore ? 'Loading...' : 'Load More Products'}
+                    {isLoadingMore ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More Products'
+                    )}
                   </Button>
                 </div>
               )}
               
               {/* Pagination Info */}
-              <div className="text-center mt-4 text-sm text-gray-600">
-                Page {currentPage} of {totalPages} • Showing {filteredProducts.length} products
-              </div>
+              {products.length > 0 && (
+                <div className="text-center mt-4 text-sm text-gray-600">
+                  Page {currentPage} of {totalPages} • Showing {filteredProducts.length} products
+                </div>
+              )}
             </>
           )}
         </div>
