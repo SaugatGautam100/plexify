@@ -28,255 +28,138 @@ import {
 import Image from 'next/image';
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const { getItemCount } = useCart();
-  const { items: wishlistItems } = useWishlist();
-  const router = useRouter();
-
-  const cartItemCount = getItemCount();
-
-  const { data: session, status } = useSession();
-
-  const isLoadingSession = status === 'loading';
-  const isAuthenticated = status === 'authenticated';
-  const isUnauthenticated = status === 'unauthenticated';
-  const isSeller = session?.user?.userType === 'seller';
-  const isUser = session?.user?.userType === 'user';
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to products page with search query
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery(''); // Clear search after submitting
-    }
-  };
-
-  const handleLogout = () => {
-    const callbackUrl = isSeller ? '/seller/login' : '/login';
-    signOut({ callbackUrl });
-    setShowLogoutDialog(false);
-  };
+  
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        {/* Top Bar */}
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-           
-            <span className="text-xl font-bold text-gray-900"><Image src={logo_black} alt='logo_black' width={100} height={100}/></span>
-          </Link>
+  <div className="container mx-auto px-4">
+    <div className="flex items-center justify-between h-16">
+      <a href="/" className="flex items-center space-x-2">
+        <span className="text-xl font-bold text-gray-900">
+          <img src="/logo_white.png" alt="logo_black" width="100" height="100" />
+        </span>
+      </a>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8">
-            <form onSubmit={handleSearch} className="w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            </form>
+      <div className="hidden md:flex flex-1 max-w-lg mx-8">
+        <form className="w-full">
+          <div className="relative">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              className="lucide lucide-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
           </div>
+        </form>
+      </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
-            {/* Seller Links */}
-            {!isAuthenticated && (
-              <Link href="/seller/login" className="hidden md:flex">
-                <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                  <Store className="w-4 h-4 mr-2" />
-                  Sell on Plexify
-                </Button>
-              </Link>
-            )}
+      <div className="flex items-center space-x-4">
+        <a href="/wishlist" className="relative hidden md:block">
+          <button
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              className="lucide lucide-heart w-5 h-5"
+            >
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+            </button>
+        </a>
 
-            {isSeller && (
-              <Link href="/seller/dashboard" className="hidden md:flex">
-                <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
-                  <Store className="w-4 h-4 mr-2" />
-                  Seller Dashboard
-                </Button>
-              </Link>
-            )}
+        <a href="/cart" className="relative hidden md:block">
+          <button
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              className="lucide lucide-shopping-cart w-5 h-5"
+            >
+              <circle cx="8" cy="21" r="1" />
+              <circle cx="19" cy="21" r="1" />
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+            </svg>
+            </button>
+        </a>
 
-            {/* Wishlist */}
-            {!isSeller && (
-            <Link href="/wishlist" className="relative hidden md:block">
-              <Button variant="ghost" size="icon">
-                <Heart className="w-5 h-5" />
-                {wishlistItems.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center text-xs">
-                    {wishlistItems.length}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
-            )}
-
-            {/* Cart */}
-            {!isSeller && (
-            <Link href="/cart" className="relative hidden md:block">
-              <Button variant="ghost" size="icon">
-                <ShoppingCart className="w-5 h-5" />
-                {cartItemCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center text-xs">
-                    {cartItemCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
-            )}
-
-            {/* User Menu */}
-            <div className="relative">
-
-              {isAuthenticated ? (
-                <div className="flex items-center space-x-2">
-                  
-                  <Link href={isSeller ? "/seller/profile" : "/profile"}>
-                    <Button variant="ghost" size="icon">
-                      <User className="w-5 h-5" />
-                    </Button>
-                  </Link>
-                  <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        Logout
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to logout? You will need to login again to access your account.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleLogout}>
-                          Logout
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              ) : (
-                <Link href="/login">
-                  <Button variant="outline" size="sm">
-                    Login
-                  </Button>
-                </Link>
-              )}
-
-            </div>
-
-            {/* Mobile Menu */}
-            <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <div className="flex flex-col space-y-4 mt-4">
-                  <div className="mb-4">
-                    <form onSubmit={handleSearch} className="w-full">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          type="text"
-                          placeholder="Search products..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </form>
-                  </div>
-
-                  {/* Seller Portal Link - Mobile */}
-                  {!isAuthenticated && (
-                    <Link href="/seller/login" className="text-lg font-medium hover:text-blue-600">
-                      <div className="flex items-center gap-2">
-                        <Store className="w-5 h-5" />
-                        Sell on Plexify
-                      </div>
-                    </Link>
-                  )}
-
-                  {/* Seller Dashboard Link - Mobile */}
-                  {isSeller && (
-                    <Link href="/seller/dashboard" className="text-lg font-medium hover:text-green-600">
-                      <div className="flex items-center gap-2">
-                        <Store className="w-5 h-5" />
-                        Seller Dashboard
-                      </div>
-                    </Link>
-                  )}
-
-                  <Link href="/products" className="text-lg font-medium hover:text-blue-600">
-                    All Products
-                  </Link>
-                  {!isSeller && (
-                    categories.map((category) => (
-                      <Link
-                        key={category.id}
-                        href={`/category/${category.slug}`}
-                        className="text-lg font-medium hover:text-blue-600"
-                      >
-                        {category.name}
-                      </Link>
-                    ))
-                  )}
-                  
-                  {/* Mobile Cart and Wishlist */}
-                  {!isSeller && (
-                    <>
-                      <Link href="/cart" className="text-lg font-medium hover:text-blue-600 flex items-center gap-2">
-                        <ShoppingCart className="w-5 h-5" />
-                        Cart {cartItemCount > 0 && `(${cartItemCount})`}
-                      </Link>
-                      <Link href="/wishlist" className="text-lg font-medium hover:text-blue-600 flex items-center gap-2">
-                        <Heart className="w-5 h-5" />
-                        Wishlist {wishlistItems.length > 0 && `(${wishlistItems.length})`}
-                      </Link>
-                    </>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+        <div className="relative">
+          <a href="/login">
+            <button
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+            >
+              Login
+            </button>
+          </a>
         </div>
 
-        {/* Navigation - Desktop */}
-        <nav className="hidden md:flex items-center space-x-8 py-4 border-t">
-          {!isSeller && (
-            <>
-              <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
-                All Products
-              </Link>
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/category/${category.slug}`}
-                  className="text-sm font-medium hover:text-blue-600 transition-colors"
-                >
-                  {category.name}
-                </Link>
-              ))}
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
+        <button
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 md:hidden"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            className="lucide lucide-menu w-5 h-5"
+          >
+            <line x1="4" x2="20" y1="12" y2="12" />
+            <line x1="4" x2="20" y1="6" y2="6" />
+            <line x1="4" x2="20" y1="18" y2="18" />
+          </svg>
+        </button>
+        </div>
+    </div>
+
+    <nav className="hidden md:flex items-center space-x-8 py-4 border-t">
+      <a href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
+        All Products
+      </a>
+      <a href="/category/electronics" className="text-sm font-medium hover:text-blue-600 transition-colors">
+        Electronics
+      </a>
+      <a href="/category/clothing" className="text-sm font-medium hover:text-blue-600 transition-colors">
+        Clothing
+      </a>
+      <a href="/category/books" className="text-sm font-medium hover:text-blue-600 transition-colors">
+        Books
+      </a>
+    </nav>
+  </div>
+</header>
   );
 }
