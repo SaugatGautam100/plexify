@@ -10,9 +10,7 @@ import { auth } from '@/lib/firebase';
 import { 
   RecaptchaVerifier, 
   signInWithPhoneNumber, 
-  ConfirmationResult,
-  PhoneAuthProvider,
-  signInWithCredential
+  ConfirmationResult
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
@@ -22,16 +20,21 @@ export default function PhoneAuth() {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   const setupRecaptcha = () => {
-    if (!recaptchaVerifier) {
+    // Clear any existing recaptcha
+    const existingRecaptcha = document.getElementById('recaptcha-container');
+    if (existingRecaptcha) {
+      existingRecaptcha.innerHTML = '';
+    }
+
+    try {
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: () => {
-          // reCAPTCHA solved
+          console.log('reCAPTCHA solved');
         },
         'expired-callback': () => {
           toast({
@@ -41,10 +44,16 @@ export default function PhoneAuth() {
           });
         }
       });
-      setRecaptchaVerifier(verifier);
       return verifier;
+    } catch (error) {
+      console.error('Error setting up reCAPTCHA:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to initialize security verification. Please refresh the page.',
+        variant: 'destructive',
+      });
+      return null;
     }
-    return recaptchaVerifier;
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -62,14 +71,31 @@ export default function PhoneAuth() {
     // Format phone number (ensure it starts with country code)
     let formattedPhone = phoneNumber.trim();
     if (!formattedPhone.startsWith('+')) {
-      // Assuming Nepal (+977) as default, you can change this
-      formattedPhone = '+977' + formattedPhone;
+      // Default to Nepal (+977) - you can change this
+      formattedPhone = '+977' + formattedPhone.replace(/^0+/, '');
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(formattedPhone)) {
+      toast({
+        title: 'Invalid Phone Number',
+        description: 'Please enter a valid phone number with country code.',
+        variant: 'destructive',
+      });
+      return;
     }
 
     setIsLoading(true);
 
     try {
       const verifier = setupRecaptcha();
+      if (!verifier) {
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Sending OTP to:', formattedPhone);
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       setStep('otp');
@@ -82,10 +108,21 @@ export default function PhoneAuth() {
       console.error('Error sending OTP:', error);
       let errorMessage = 'Failed to send OTP. Please try again.';
       
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later.';
+      switch (error.code) {
+        case 'auth/invalid-phone-number':
+          errorMessage = 'Invalid phone number format.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many requests. Please try again later.';
+          break;
+        case 'auth/quota-exceeded':
+          errorMessage = 'SMS quota exceeded. Please try again later.';
+          break;
+        case 'auth/captcha-check-failed':
+          errorMessage = 'Security verification failed. Please try again.';
+          break;
+        default:
+          errorMessage = error.message || 'Failed to send OTP. Please try again.';
       }
       
       toast({
@@ -125,7 +162,6 @@ export default function PhoneAuth() {
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
       
-      // Here you can save user data to your database or perform additional actions
       console.log('User signed in:', user);
       
       toast({
@@ -133,16 +169,24 @@ export default function PhoneAuth() {
         description: 'Phone number verified successfully.',
       });
       
-      // Redirect to dashboard or home page
+      // Redirect to home page
       router.push('/');
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
       let errorMessage = 'Invalid OTP. Please try again.';
       
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid verification code.';
-      } else if (error.code === 'auth/code-expired') {
-        errorMessage = 'Verification code has expired. Please request a new one.';
+      switch (error.code) {
+        case 'auth/invalid-verification-code':
+          errorMessage = 'Invalid verification code.';
+          break;
+        case 'auth/code-expired':
+          errorMessage = 'Verification code has expired. Please request a new one.';
+          break;
+        case 'auth/session-expired':
+          errorMessage = 'Session expired. Please request a new code.';
+          break;
+        default:
+          errorMessage = error.message || 'Invalid OTP. Please try again.';
       }
       
       toast({
@@ -197,6 +241,7 @@ export default function PhoneAuth() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
+                disabled={isLoading}
               />
               <p className="text-xs text-gray-500">
                 Include country code (e.g., +977 for Nepal)
@@ -218,6 +263,7 @@ export default function PhoneAuth() {
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 maxLength={6}
                 required
+                disabled={isLoading}
               />
               <p className="text-xs text-gray-500">
                 Code sent to {phoneNumber}
@@ -258,7 +304,7 @@ export default function PhoneAuth() {
         )}
         
         {/* reCAPTCHA container */}
-        <div id="recaptcha-container"></div>
+        <div id="recaptcha-container" className="mt-4"></div>
       </CardContent>
     </Card>
   );
