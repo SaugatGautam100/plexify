@@ -90,16 +90,15 @@ export default function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
-                    <User className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <User className="w-4 h-4 text-blue-600" />
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => router.push('/profile')}>
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/profile/orders')}>
-                    Orders
-                  </DropdownMenuItem>
+                  <div className="px-2 py-1.5 text-sm text-gray-600 border-b">
+                    {user.phoneNumber}
+                  </div>
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
