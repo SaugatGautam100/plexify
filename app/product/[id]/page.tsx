@@ -15,7 +15,7 @@ import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 import ProductGrid from '@/components/product/product-grid';
 import { useToast } from '@/hooks/use-toast';
-import { useSession } from 'next-auth/react';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 
 export default function ProductPage() {
   const params = useParams();
@@ -30,7 +30,7 @@ export default function ProductPage() {
   const { addItem } = useCart();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const { user } = useFirebaseAuth();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -88,16 +88,6 @@ export default function ProductPage() {
     : 0;
 
   const handleAddToCart = () => {
-    // Check if user is a seller
-    if (session?.user?.userType === 'seller') {
-      toast({
-        title: 'Access Restricted',
-        description: 'Sellers cannot add items to cart. Please use a customer account.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     if (!product.inStock) {
       toast({
         title: 'Out of Stock',
@@ -115,16 +105,6 @@ export default function ProductPage() {
   };
 
   const handleWishlistToggle = () => {
-    // Check if user is a seller
-    if (session?.user?.userType === 'seller') {
-      toast({
-        title: 'Access Restricted',
-        description: 'Sellers cannot add items to wishlist. Please use a customer account.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
       toast({
