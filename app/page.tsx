@@ -36,7 +36,7 @@ export default function Dashboard() {
       
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white" id='hero-section'>
+      <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hero-section" id='hero-section'>
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">

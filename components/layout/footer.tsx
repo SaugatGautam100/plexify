@@ -10,9 +10,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div>
+
             <div className="flex items-center space-x-2 mb-4">
-             
+              <Link href="/">
+              
               <span><Image src={logo_white} alt='logo_white' width={100} height={100}/></span>
+              </Link>
+             
             </div>
             <p className="text-gray-400 mb-4">
               Your trusted online shopping destination for quality products at great prices.
@@ -119,7 +123,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © 2024 Plexify. All rights reserved.
+            © 2025 Plexify. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
