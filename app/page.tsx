@@ -6,35 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import ProductGrid from '@/components/product/product-grid';
 import { products, categories } from '@/lib/mock-data';
-import { useSession } from 'next-auth/react';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 
 export default function Dashboard() {
   const featuredProducts = products.slice(0, 4);
   const saleProducts = products.filter(p => p.originalPrice && p.originalPrice > p.price);
 
-  const { data: session, status } = useSession();
+  const { user, loading } = useFirebaseAuth();
 
-  console.log("Session:", session);
-  console.log("Status:", status);
+  console.log("Firebase User:", user);
+  console.log("Loading:", loading);
 
-  const isLoadingSession = status === "loading";
-  const isAuthenticated = status === "authenticated";
-  const isUnauthenticated = status === "unauthenticated";
-
-  if (isLoadingSession) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <p>Loading session...</p>
+        <p>Loading...</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen">
-     
-
-      
-
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hero-section" id='hero-section'>
         <div className="container mx-auto px-4 py-16">
@@ -54,8 +46,6 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
-
-      
 
       {/* Categories Section */}
       <section className="py-16">
@@ -141,6 +131,7 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+      
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
