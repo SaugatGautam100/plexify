@@ -9,6 +9,7 @@ import { FirebaseAuthProvider } from '@/components/auth/firebase-auth-context';
 import { Toaster } from '@/components/ui/sonner';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
+import SessionWrapper from '@/contexts/SessionWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,7 +34,10 @@ export default function RootLayout({
                   <div className="min-h-screen flex flex-col">
                     <Header />
                     <main className="flex-1">
+                      <SessionWrapper>
+
                       {children}
+                      </SessionWrapper>
                     </main>
                     <Footer />
                   </div>
