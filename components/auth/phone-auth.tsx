@@ -169,8 +169,9 @@ export default function PhoneAuth() {
         description: 'Phone number verified successfully.',
       });
       
-      // Redirect to home page
-      router.push('/');
+      // Redirect to home page or previous page
+      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl') || '/';
+      router.push(returnUrl);
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
       let errorMessage = 'Invalid OTP. Please try again.';

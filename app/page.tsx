@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, ShoppingBag, Truck, Shield, Headphones } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,10 +58,11 @@ export default function Dashboard() {
                 <Card className="hover:shadow-lg transition-shadow duration-300">
                   <CardContent className="p-6">
                     <div className="aspect-square relative mb-4 bg-gray-100 rounded-lg overflow-hidden">
-                      <img
+                      <Image
                         src={category.image}
                         alt={category.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{category.name}</h3>

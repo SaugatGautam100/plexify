@@ -14,7 +14,7 @@ export default function Footer() {
             <div className="flex items-center space-x-2 mb-4">
               <Link href="/">
               
-              <span><Image src={logo_white} alt='logo_white' width={100} height={100}/></span>
+              <span><Image src={logo_white} alt='logo_white' width={100} height={100} priority /></span>
               </Link>
              
             </div>

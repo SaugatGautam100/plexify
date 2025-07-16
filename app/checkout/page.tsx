@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreditCard, MapPin, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,20 +10,41 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/cart-context';
-import { useAuth } from '@/contexts/auth-context';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { items, getTotal, clearCart } = useCart();
+  const { user, loading } = useFirebaseAuth();
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login?returnUrl=/checkout');
+    }
+  }, [user, loading, router]);
 
   const total = getTotal();
   const shipping = total > 50 ? 0 : 10;
   const tax = total * 0.08;
   const finalTotal = total + shipping + tax;
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

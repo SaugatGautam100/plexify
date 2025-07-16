@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,9 +9,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import CartItem from '@/components/cart/cart-item';
 import { useCart } from '@/contexts/cart-context';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 
 export default function CartPage() {
+  const router = useRouter();
+  const { user, loading } = useFirebaseAuth();
   const { items, getTotal, clearCart } = useCart();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login?returnUrl=/cart');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect
+  }
 
   if (items.length === 0) {
     return (

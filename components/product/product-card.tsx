@@ -35,6 +35,15 @@ export default function ProductCard({ product, className }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
     
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'Please login to add items to your cart.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     if (!product.inStock) {
       toast({
         title: 'Out of Stock',
@@ -54,6 +63,15 @@ export default function ProductCard({ product, className }: ProductCardProps) {
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'Please login to add items to your wishlist.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
