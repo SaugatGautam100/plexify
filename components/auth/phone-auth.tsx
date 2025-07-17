@@ -12,6 +12,8 @@ import {
   signInWithPhoneNumber, 
   ConfirmationResult
 } from 'firebase/auth';
+import { getDatabase, ref, set, get } from 'firebase/database';
+import app from '@/app/firebaseConfig';
 import { useRouter } from 'next/navigation';
 
 export default function PhoneAuth() {
@@ -53,6 +55,60 @@ export default function PhoneAuth() {
         variant: 'destructive',
       });
       return null;
+    }
+  };
+
+  const saveUserToDatabase = async (user: any) => {
+    try {
+      const db = getDatabase(app);
+      const userRef = ref(db, `AllUsers/Users/${user.uid}`);
+      
+      // Check if user already exists
+      const snapshot = await get(userRef);
+      
+      if (!snapshot.exists()) {
+        // Create new user record
+        const userData = {
+          uid: user.uid,
+          phoneNumber: user.phoneNumber,
+          email: user.email || null,
+          displayName: user.displayName || null,
+          photoURL: user.photoURL || null,
+          userType: 'user', // Default user type
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+          isActive: true,
+          // Initialize empty cart and wishlist
+          UserCartItems: {},
+          UserWishlistItems: {}
+        };
+        
+        await set(userRef, userData);
+        console.log('New user saved to database:', userData);
+        
+        toast({
+          title: 'Welcome!',
+          description: 'Your account has been created successfully.',
+        });
+      } else {
+        // Update existing user's last login
+        const existingData = snapshot.val();
+        await set(ref(db, `AllUsers/Users/${user.uid}/lastLoginAt`), Date.now());
+        
+        console.log('Existing user login updated:', existingData);
+        
+        toast({
+          title: 'Welcome back!',
+          description: 'You have been logged in successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving user to database:', error);
+      toast({
+        title: 'Warning',
+        description: 'Login successful, but there was an issue saving user data.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -164,10 +220,8 @@ export default function PhoneAuth() {
       
       console.log('User signed in:', user);
       
-      toast({
-        title: 'Success!',
-        description: 'Phone number verified successfully.',
-      });
+      // Save user data to Firebase Realtime Database
+      await saveUserToDatabase(user);
       
       // Redirect to home page or previous page
       const returnUrl = new URLSearchParams(window.location.search).get('returnUrl') || '/';

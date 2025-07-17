@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -28,7 +27,7 @@ export default function Header() {
   const [countsLoading, setCountsLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { user, loading, logout } = useFirebaseAuth();
+  const { user, userData, loading, logout } = useFirebaseAuth();
 
   /**
    * Sets up real-time listeners for cart and wishlist item counts.
@@ -97,12 +96,25 @@ export default function Header() {
     }
   };
 
-  // Get user's phone number or email for display
+  // Get user's display name from userData or fallback to phone/email
   const getUserDisplayName = () => {
+    if (userData?.displayName) {
+      return userData.displayName;
+    }
+    if (userData?.phoneNumber) {
+      return userData.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
+    }
+    if (userData?.email) {
+      return userData.email;
+    }
     if (user?.phoneNumber) {
       return user.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
     }
     return user?.email || 'User';
+  };
+
+  const getUserContactInfo = () => {
+    return userData?.email || userData?.phoneNumber || user?.email || user?.phoneNumber || '';
   };
 
   return (
@@ -193,8 +205,13 @@ export default function Header() {
                     {getUserDisplayName()}
                   </div>
                   <div className="px-2 py-1.5 text-xs text-gray-500">
-                    {user.email || user.phoneNumber}
+                    {getUserContactInfo()}
                   </div>
+                  {userData && (
+                    <div className="px-2 py-1.5 text-xs text-gray-500">
+                      User Type: {userData.userType}
+                    </div>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center gap-2">
@@ -255,11 +272,14 @@ export default function Header() {
               <SheetContent side="right" className="w-full sm:max-w-sm">
                 <MobileMenu
                   user={user}
+                  userData={userData}
                   loading={loading}
                   cartItemCount={cartItemCount}
                   wishlistItemCount={wishlistItemCount}
                   onLogout={handleLogout}
                   onClose={() => setIsMobileMenuOpen(false)}
+                  getUserDisplayName={getUserDisplayName}
+                  getUserContactInfo={getUserContactInfo}
                 />
               </SheetContent>
             </Sheet>
@@ -291,18 +311,24 @@ export default function Header() {
  */
 function MobileMenu({
   user,
+  userData,
   loading,
   cartItemCount,
   wishlistItemCount,
   onLogout,
-  onClose
+  onClose,
+  getUserDisplayName,
+  getUserContactInfo
 }: {
   user: any;
+  userData: any;
   loading: boolean;
   cartItemCount: number;
   wishlistItemCount: number;
   onLogout: () => void;
   onClose: () => void;
+  getUserDisplayName: () => string;
+  getUserContactInfo: () => string;
 }) {
   const router = useRouter();
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
@@ -319,13 +345,6 @@ function MobileMenu({
   const handleNavigation = (path: string) => {
     router.push(path);
     onClose();
-  };
-
-  const getUserDisplayName = () => {
-    if (user?.phoneNumber) {
-      return user.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
-    }
-    return user?.email || 'User';
   };
 
   return (
@@ -364,7 +383,10 @@ function MobileMenu({
                 </div>
                 <div>
                   <div className="font-medium">{getUserDisplayName()}</div>
-                  <div className="text-sm text-gray-500">{user.email || user.phoneNumber}</div>
+                  <div className="text-sm text-gray-500">{getUserContactInfo()}</div>
+                  {userData && (
+                    <div className="text-xs text-gray-400">Type: {userData.userType}</div>
+                  )}
                 </div>
               </div>
               
