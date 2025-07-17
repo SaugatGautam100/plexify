@@ -1,25 +1,16 @@
 export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  description: string;
-  image: string;
-  images: string[];
-  category: string;
-  subcategory?: string;
-  brand: string;
-  rating: number;
-  reviews: number;
-  inStock: boolean;
-  stockQuantity: number;
-  features: string[];
-  specifications: Record<string, string>;
-  tags: string[];
-  sellerId: string;
-  sellerName: string;
-  createdAt: string;
-  updatedAt: string;
+  adminUid: string;
+  itemCount: number;
+  productCategory: string;
+  productId: string;
+  productImageUris: string[];
+  productPrice: number;
+  productQuantity: number;
+  productRandomId: string;
+  productStock: number;
+  productTitle: string;
+  productType: string;
+  productUnit: string;
 }
 
 export interface CartItem {

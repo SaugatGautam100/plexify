@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -9,24 +10,75 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { useCart } from '@/contexts/cart-context';
-import { useWishlist } from '@/contexts/wishlist-context';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
+import { getDatabase, ref, onValue, off } from 'firebase/database';
+import app from '../../app/firebaseConfig';
 import { categories } from '@/lib/mock-data';
 import Image from 'next/image';
 
+/**
+ * Header component provides navigation, search, cart, wishlist, and user authentication UI.
+ * Uses real-time listeners for cart and wishlist item counts from Firebase.
+ */
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
+  const [wishlistItemCount, setWishlistItemCount] = useState(0);
+  const [countsLoading, setCountsLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  
-  const { items: cartItems, getItemCount } = useCart();
-  const { items: wishlistItems } = useWishlist();
   const { user, loading, logout } = useFirebaseAuth();
 
-  const cartItemCount = getItemCount();
-  const wishlistItemCount = wishlistItems.length;
+  /**
+   * Sets up real-time listeners for cart and wishlist item counts.
+   */
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      setCartItemCount(0);
+      setWishlistItemCount(0);
+      setCountsLoading(false);
+      return;
+    }
+
+    setCountsLoading(true);
+
+    const db = getDatabase(app);
+
+    // Real-time listener for cart count
+    const cartRef = ref(db, `AllUsers/Users/${user.uid}/UserCartItems`);
+    const unsubscribeCart = onValue(cartRef, (snapshot) => {
+      let cartCount = 0;
+      if (snapshot.exists()) {
+        const cartData = snapshot.val();
+        cartCount = Object.values(cartData).reduce((sum: number, item: any) => sum + (item.productQuantity || 0), 0);
+      }
+      setCartItemCount(cartCount);
+      setCountsLoading(false); // Set loading false after first update
+    }, (error) => {
+      console.error('Error listening to cart updates:', error);
+      setCartItemCount(0);
+      setCountsLoading(false);
+    });
+
+    // Real-time listener for wishlist count
+    const wishlistRef = ref(db, `AllUsers/Users/${user.uid}/UserWishlistItems`);
+    const unsubscribeWishlist = onValue(wishlistRef, (snapshot) => {
+      const wishlistCount = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
+      setWishlistItemCount(wishlistCount);
+    }, (error) => {
+      console.error('Error listening to wishlist updates:', error);
+      setWishlistItemCount(0);
+    });
+
+    // Clean up listeners on unmount or user change
+    return () => {
+      off(cartRef);
+      off(wishlistRef);
+    };
+  }, [user, loading]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +97,9 @@ export default function Header() {
     }
   };
 
-  // Get user's phone number for display
+  // Get user's phone number or email for display
   const getUserDisplayName = () => {
     if (user?.phoneNumber) {
-      // Format phone number for display (e.g., +977 98XXXXXXXX -> 98XXXXXXXX)
       return user.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
     }
     return user?.email || 'User';
@@ -85,11 +136,11 @@ export default function Header() {
             {/* Wishlist */}
             {user ? (
               <Link href="/wishlist" className="relative">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" disabled={countsLoading}>
                   <Heart className="w-5 h-5" />
-                  {wishlistItemCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
+                  {wishlistItemCount > 0 && !countsLoading && (
+                    <Badge
+                      variant="destructive"
                       className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0"
                     >
                       {wishlistItemCount}
@@ -106,11 +157,11 @@ export default function Header() {
             {/* Cart */}
             {user ? (
               <Link href="/cart" className="relative">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" disabled={countsLoading}>
                   <ShoppingCart className="w-5 h-5" />
-                  {cartItemCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
+                  {cartItemCount > 0 && !countsLoading && (
+                    <Badge
+                      variant="destructive"
                       className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0"
                     >
                       {cartItemCount}
@@ -177,7 +228,7 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={handleLogout}
                     className="flex items-center gap-2 text-red-600 focus:text-red-600"
                   >
@@ -202,7 +253,7 @@ export default function Header() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full sm:max-w-sm">
-                <MobileMenu 
+                <MobileMenu
                   user={user}
                   loading={loading}
                   cartItemCount={cartItemCount}
@@ -221,9 +272,9 @@ export default function Header() {
             All Products
           </Link>
           {categories.slice(0, 6).map((category) => (
-            <Link 
+            <Link
               key={category.id}
-              href={`/category/${category.slug}`} 
+              href={`/category/${category.slug}`}
               className="text-sm font-medium hover:text-blue-600 transition-colors"
             >
               {category.name}
@@ -235,14 +286,16 @@ export default function Header() {
   );
 }
 
-// Mobile Menu Component
-function MobileMenu({ 
-  user, 
-  loading, 
-  cartItemCount, 
-  wishlistItemCount, 
-  onLogout, 
-  onClose 
+/**
+ * MobileMenu component renders the mobile navigation menu.
+ */
+function MobileMenu({
+  user,
+  loading,
+  cartItemCount,
+  wishlistItemCount,
+  onLogout,
+  onClose
 }: {
   user: any;
   loading: boolean;
@@ -252,6 +305,16 @@ function MobileMenu({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+
+  const handleMobileSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mobileSearchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(mobileSearchQuery.trim())}`);
+      setMobileSearchQuery('');
+      onClose();
+    }
+  };
 
   const handleNavigation = (path: string) => {
     router.push(path);
@@ -277,14 +340,16 @@ function MobileMenu({
       <div className="flex-1 overflow-y-auto">
         {/* Search Bar - Mobile */}
         <div className="p-4 border-b">
-          <div className="relative">
+          <form onSubmit={handleMobileSearch} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               type="text"
               placeholder="Search products..."
+              value={mobileSearchQuery}
+              onChange={(e) => setMobileSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 w-full"
             />
-          </div>
+          </form>
         </div>
 
         {/* User Section */}
@@ -304,18 +369,18 @@ function MobileMenu({
               </div>
               
               <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleNavigation('/cart')}
                   className="flex items-center gap-2"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   Cart ({cartItemCount})
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleNavigation('/wishlist')}
                   className="flex items-center gap-2"
                 >
@@ -325,8 +390,8 @@ function MobileMenu({
               </div>
             </div>
           ) : (
-            <Button 
-              onClick={() => handleNavigation('/login')} 
+            <Button
+              onClick={() => handleNavigation('/login')}
               className="w-full"
             >
               Login
@@ -337,18 +402,18 @@ function MobileMenu({
         {/* Navigation Links */}
         <div className="p-4 space-y-2">
           <h3 className="font-medium text-gray-900 mb-3">Categories</h3>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start" 
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
             onClick={() => handleNavigation('/products')}
           >
             All Products
           </Button>
           {categories.slice(0, 8).map((category) => (
-            <Button 
+            <Button
               key={category.id}
-              variant="ghost" 
-              className="w-full justify-start" 
+              variant="ghost"
+              className="w-full justify-start"
               onClick={() => handleNavigation(`/category/${category.slug}`)}
             >
               {category.name}
@@ -360,33 +425,33 @@ function MobileMenu({
         {user && (
           <div className="p-4 border-t space-y-2">
             <h3 className="font-medium text-gray-900 mb-3">Account</h3>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
               onClick={() => handleNavigation('/profile')}
             >
               <User className="w-4 h-4 mr-2" />
               Profile
             </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
               onClick={() => handleNavigation('/profile/orders')}
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
               My Orders
             </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
               onClick={() => handleNavigation('/seller/login')}
             >
               <Store className="w-4 h-4 mr-2" />
               Become a Seller
             </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-red-600 hover:text-red-600" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-600"
               onClick={() => {
                 onLogout();
                 onClose();

@@ -1,27 +1,55 @@
-"use client";
+
+'use client';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, ShoppingBag, Truck, Shield, Headphones } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import ProductGrid from '@/components/product/product-grid';
-import { products, categories } from '@/lib/mock-data';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
+import { products, categories } from '@/lib/mock-data';
+import { Product } from '@/types';
 
 export default function Dashboard() {
   const featuredProducts = products.slice(0, 4);
-  const saleProducts = products.filter(p => p.originalPrice && p.originalPrice > p.price);
-
   const { user, loading } = useFirebaseAuth();
+  const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
+
+  // Initialize image indices for featured products
+  useEffect(() => {
+    const initialIndices = featuredProducts.reduce((acc, item) => ({
+      ...acc,
+      [item.productId]: 0
+    }), {});
+    setImageIndices(initialIndices);
+  }, []);
+
+  // Automatic carousel cycling for featured products
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setImageIndices(prev => {
+        const newIndices = { ...prev };
+        featuredProducts.forEach(item => {
+          const imageCount = item.productImageUris?.length || 1;
+          if (imageCount > 1) {
+            newIndices[item.productId] = (prev[item.productId] || 0) + 1 >= imageCount ? 0 : (prev[item.productId] || 0) + 1;
+          }
+        });
+        return newIndices;
+      });
+    }, 1500); // Change image every 1.5 seconds
+
+    return () => clearInterval(interval);
+  }, [featuredProducts]);
 
   console.log("Firebase User:", user);
   console.log("Loading:", loading);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>Loading...</p>
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
       </div>
     );
   }
@@ -90,50 +118,53 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          <ProductGrid products={featuredProducts} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((item) => (
+              <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                <Link href={`/product/${item.productId}`} className="block">
+                  <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
+                    {item.productImageUris && item.productImageUris.length > 0 ? (
+                      <>
+                        <Image
+                          src={item.productImageUris[imageIndices[item.productId] || 0]}
+                          alt={`${item.productTitle || "Product Image"} ${imageIndices[item.productId] + 1}`}
+                          fill
+                          className="object-contain transition-transform duration-300 hover:scale-105"
+                          onError={(e) => {
+                            e.currentTarget.src = "https://placehold.co/600x400/E0E0E0/808080?text=Image+Error";
+                          }}
+                        />
+                        {item.productImageUris.length > 1 && (
+                          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                            {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <Image
+                        src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
+                        alt="No Image Available"
+                        fill
+                        className="object-contain transition-transform duration-300 hover:scale-105"
+                      />
+                    )}
+                  </div>
+                  <CardContent className="p-4">
+                    <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">{item.productTitle}</h2>
+                    <p className="text-sm text-gray-600">{item.productCategory}</p>
+                    <p className="text-sm text-gray-600">Available: {item.productStock}</p>
+                    <div className="mt-2 text-xl font-bold text-blue-900">
+                      Rs.{item.productPrice}{' '}
+                      <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                    </div>
+                  </CardContent>
+                </Link>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Sale Products */}
-      {saleProducts.length > 0 && (
-        <section className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="flex justify-between items-center mb-12">
-              <h2 className="text-3xl font-bold">Special Offers</h2>
-              <Link href="/products?sale=true">
-                <Button variant="outline">
-                  View All Deals
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-            <ProductGrid products={saleProducts} />
-          </div>
-        </section>
-      )}
-
-      {/* Newsletter Section */}
-      <section className="py-16 bg-blue-600">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto text-center text-white">
-            <h2 className="text-3xl font-bold mb-4">Stay Updated</h2>
-            <p className="text-xl mb-8 opacity-90">
-              Subscribe to our newsletter for the latest deals and new arrivals.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 rounded-lg text-gray-900"
-              />
-              <Button className="bg-white text-blue-600 hover:bg-gray-100">
-                Subscribe
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-      
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">

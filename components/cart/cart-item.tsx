@@ -1,108 +1,65 @@
+
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { CartItem as CartItemType } from '@/types';
-import { useCart } from '@/contexts/cart-context';
 
-interface CartItemProps {
-  item: CartItemType;
-}
-
-export default function CartItem({ item }: CartItemProps) {
-  const { updateQuantity, removeItem } = useCart();
-  const [quantity, setQuantity] = useState(item.quantity);
-
-  const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity >= 1 && newQuantity <= item.product.stockQuantity) {
-      setQuantity(newQuantity);
-      updateQuantity(item.product.id, newQuantity);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 1;
-    handleQuantityChange(value);
-  };
-
-  const itemTotal = item.product.price * item.quantity;
-
+/**
+ * CartItem component displays a single cart item with product details, a delete button, and an image carousel.
+ * @param item - The cart item data
+ * @param onDelete - Function to trigger the confirmation dialog for deletion
+ * @param imageIndex - Current index of the image to display
+ */
+export default function CartItem({ item, onDelete, imageIndex }) {
   return (
-    <div className="flex items-center space-x-4 py-4 border-b">
-      {/* Product Image */}
-      <div className="flex-shrink-0">
-        <Link href={`/product/${item.product.id}`}>
-          <div className="w-20 h-20 relative bg-gray-100 rounded-lg overflow-hidden">
+    <div className="flex items-center gap-4 p-4 border rounded-lg bg-white font-inter relative">
+      <div className="relative w-24 h-24 flex-shrink-0">
+        {item.productImageUris && item.productImageUris.length > 0 ? (
+          <>
             <Image
-              src={item.product.image}
-              alt={item.product.name}
+              src={item.productImageUris[imageIndex]}
+              alt={`${item.productTitle || "Product Image"} ${imageIndex + 1}`}
               fill
-              className="object-cover"
+              className="object-contain rounded-md"
+              onError={(e) => {
+                e.currentTarget.src = "https://placehold.co/100x100/E0E0E0/808080?text=Image+Error";
+              }}
             />
-          </div>
-        </Link>
+            {item.productImageUris.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                {imageIndex + 1} / {item.productImageUris.length}
+              </div>
+            )}
+          </>
+        ) : (
+          <Image
+            src="https://placehold.co/100x100/E0E0E0/808080?text=No+Image"
+            alt="No Image Available"
+            fill
+            className="object-contain rounded-md"
+          />
+        )}
       </div>
-
-      {/* Product Details */}
-      <div className="flex-1 min-w-0">
-        <Link href={`/product/${item.product.id}`}>
-          <h3 className="text-sm font-medium text-gray-900 hover:text-blue-600 line-clamp-2">
-            {item.product.name}
-          </h3>
-        </Link>
-        <p className="text-sm text-gray-500 mt-1">{item.product.brand}</p>
-        <p className="text-sm font-medium text-gray-900 mt-1">
-          ${item.product.price}
+      <div className="flex-1">
+        <h3 className="text-md font-semibold text-gray-800">{item.productTitle}</h3>
+        <p className="text-sm text-gray-600">{item.productCategory}</p>
+        <p className="text-sm text-gray-600">Available: {item.productStock}</p>
+        <p className="text-md font-bold text-blue-900">
+          Rs.{item.productPrice.toFixed(2)} <span className="text-sm text-gray-500">per {item.productUnit}</span>
         </p>
+        <p className="text-sm text-gray-600">Quantity: {item.productQuantity}</p>
       </div>
-
-      {/* Quantity Controls */}
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => handleQuantityChange(quantity - 1)}
-          disabled={quantity <= 1}
-        >
-          <Minus className="w-4 h-4" />
-        </Button>
-        <Input
-          type="number"
-          value={quantity}
-          onChange={handleInputChange}
-          className="w-16 text-center"
-          min="1"
-          max={item.product.stockQuantity}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => handleQuantityChange(quantity + 1)}
-          disabled={quantity >= item.product.stockQuantity}
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* Item Total */}
-      <div className="text-right">
-        <p className="text-sm font-medium text-gray-900">
-          ${itemTotal.toFixed(2)}
-        </p>
-      </div>
-
-      {/* Remove Button */}
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="h-8 w-8 text-red-600 hover:text-red-700"
-        onClick={() => removeItem(item.product.id)}
+        className="rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600"
+        onClick={(e) => {
+          e.stopPropagation();
+          console.log("Delete button clicked:", { id: item.id, productTitle: item.productTitle });
+          onDelete(item.id, item.productTitle);
+        }}
+        aria-label={`Remove ${item.productTitle} from cart`}
       >
         <Trash2 className="w-4 h-4" />
       </Button>

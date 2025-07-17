@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, ShoppingCart, Heart, Eye } from 'lucide-react';
+import { ShoppingCart, Heart, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,20 +21,24 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, className }: ProductCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { addItem } = useCart();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
   const { user } = useFirebaseAuth();
 
-  const isOnSale = product.originalPrice && product.originalPrice > product.price;
-  const discountPercentage = isOnSale 
-    ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
-    : 0;
+  // Get the current image URL or fallback to placeholder
+  const getCurrentImageUrl = () => {
+    if (product.productImageUris && product.productImageUris.length > currentImageIndex) {
+      return product.productImageUris[currentImageIndex];
+    }
+    return '/placeholder-image.jpg';
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       toast({
         title: 'Login Required',
@@ -43,8 +47,8 @@ export default function ProductCard({ product, className }: ProductCardProps) {
       });
       return;
     }
-    
-    if (!product.inStock) {
+
+    if (product.productStock <= 0) {
       toast({
         title: 'Out of Stock',
         description: 'This product is currently out of stock.',
@@ -52,18 +56,18 @@ export default function ProductCard({ product, className }: ProductCardProps) {
       });
       return;
     }
-    
+
     addItem(product);
     toast({
       title: 'Added to Cart',
-      description: `${product.name} has been added to your cart.`,
+      description: `${product.productTitle} has been added to your cart.`,
     });
   };
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       toast({
         title: 'Login Required',
@@ -72,36 +76,51 @@ export default function ProductCard({ product, className }: ProductCardProps) {
       });
       return;
     }
-    
-    if (isInWishlist(product.id)) {
-      removeFromWishlist(product.id);
+
+    if (isInWishlist(product.productId)) {
+      removeFromWishlist(product.productId);
       toast({
         title: 'Removed from Wishlist',
-        description: `${product.name} has been removed from your wishlist.`,
+        description: `${product.productTitle} has been removed from your wishlist.`,
       });
     } else {
       addToWishlist(product);
       toast({
         title: 'Added to Wishlist',
-        description: `${product.name} has been added to your wishlist.`,
+        description: `${product.productTitle} has been added to your wishlist.`,
       });
+    }
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error(
+      `Image failed to load for product "${product.productTitle}" (ID: ${product.productId}):`,
+      getCurrentImageUrl(),
+      e
+    );
+    // Try the next image if available, otherwise use the placeholder
+    if (product.productImageUris && currentImageIndex < product.productImageUris.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    } else {
+      setIsImageLoaded(true); // Show the placeholder image
     }
   };
 
   return (
     <Card className={cn("group hover:shadow-lg transition-shadow duration-300", className)}>
       <div className="relative overflow-hidden">
-        <Link href={`/product/${product.id}`}>
+        <Link href={`/product/${product.productId}`}>
           <div className="aspect-square relative bg-gray-100">
             <Image
-              src={product.image}
-              alt={product.name}
+              src={getCurrentImageUrl()}
+              alt={product.productTitle}
               fill
               className={cn(
                 "object-cover transition-transform duration-300 group-hover:scale-105",
                 isImageLoaded ? "opacity-100" : "opacity-0"
               )}
               onLoad={() => setIsImageLoaded(true)}
+              onError={handleImageError}
             />
             {!isImageLoaded && (
               <div className="absolute inset-0 bg-gray-200 animate-pulse" />
@@ -111,12 +130,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {isOnSale && (
-            <Badge variant="destructive" className="text-xs">
-              -{discountPercentage}%
-            </Badge>
-          )}
-          {!product.inStock && (
+          {product.productStock <= 0 && (
             <Badge variant="secondary" className="text-xs">
               Out of Stock
             </Badge>
@@ -131,9 +145,9 @@ export default function ProductCard({ product, className }: ProductCardProps) {
             className="h-8 w-8"
             onClick={handleWishlistToggle}
           >
-            <Heart className={cn("w-4 h-4", isInWishlist(product.id) && "fill-current text-red-500")} />
+            <Heart className={cn("w-4 h-4", isInWishlist(product.productId) && "fill-current text-red-500")} />
           </Button>
-          <Link href={`/product/${product.id}`}>
+          <Link href={`/product/${product.productId}`}>
             <Button size="icon" variant="secondary" className="h-8 w-8">
               <Eye className="w-4 h-4" />
             </Button>
@@ -144,7 +158,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             onClick={handleAddToCart}
-            disabled={!product.inStock}
+            disabled={product.productStock <= 0}
             className="w-full"
             size="sm"
           >
@@ -156,46 +170,23 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
       <CardContent className="p-4">
         <div className="space-y-2">
-          {/* Brand */}
-          <p className="text-sm text-gray-600">{product.brand}</p>
-          
+          {/* Category and Unit */}
+          <p className="text-sm text-gray-600">
+            {product.productCategory} • {product.productQuantity} {product.productUnit}
+          </p>
+
           {/* Product Name */}
-          <Link href={`/product/${product.id}`}>
+          <Link href={`/product/${product.productId}`}>
             <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
-              {product.name}
+              {product.productTitle}
             </h3>
           </Link>
-
-          {/* Rating */}
-          <div className="flex items-center gap-1">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    "w-4 h-4",
-                    i < Math.floor(product.rating)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-gray-300"
-                  )}
-                />
-              ))}
-            </div>
-            <span className="text-sm text-gray-600">
-              ({product.reviews})
-            </span>
-          </div>
 
           {/* Price */}
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-gray-900">
-              ${product.price}
+              ${product.productPrice.toFixed(2)}
             </span>
-            {isOnSale && (
-              <span className="text-sm text-gray-500 line-through">
-                ${product.originalPrice}
-              </span>
-            )}
           </div>
         </div>
       </CardContent>
