@@ -25,13 +25,9 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const [profileData, setProfileData] = useState({
-    name: '',
-    email: '',
+
     phone: '',
     address: '',
-    gender: 'prefer-not-to-say',
-    bio: '',
-    createdAt: '',
     addresses: [],
     orders: [],
     preferences: {
@@ -69,8 +65,7 @@ export default function ProfilePage() {
     if (userData) {
       setProfileData(prev => ({
         ...prev,
-        name: userData.displayName || '',
-        email: userData.email || '',
+        
         phone: userData.mobileNumber || userData.phoneNumber || '',
         address: userData.address || '',
         createdAt: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
@@ -107,8 +102,7 @@ export default function ProfilePage() {
       // Update user data in Firebase
       const updatedData = {
         ...currentData,
-        displayName: profileData.name,
-        email: profileData.email,
+
         mobileNumber: profileData.phone,
         address: profileData.address,
         gender: profileData.gender,
@@ -282,25 +276,6 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={profileData.name}
-                      onChange={(e) => handleProfileUpdate('name', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) => handleProfileUpdate('email', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
@@ -320,34 +295,6 @@ export default function ProfilePage() {
                       disabled={!isEditing}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select
-                      value={profileData.gender}
-                      onValueChange={(value) => handleProfileUpdate('gender', value)}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={profileData.bio}
-                    onChange={(e) => handleProfileUpdate('bio', e.target.value)}
-                    disabled={!isEditing}
-                    rows={3}
-                  />
                 </div>
               </CardContent>
             </Card>

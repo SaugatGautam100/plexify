@@ -8,15 +8,7 @@ import app from '@/app/firebaseConfig';
 
 interface UserData {
   uid: string;
-  phoneNumber: string | null;
-  mobileNumber: string | null;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
-  userType: 'user' | 'seller';
-  createdAt: number;
   address: string;
-  isActive: boolean;
 }
 
 interface AuthContextType {
@@ -48,21 +40,16 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       
       if (snapshot.exists()) {
         const data = snapshot.val();
-        setUserData(data);
+        setUserData({
+          uid: firebaseUser.uid,
+          address: data.address || '',
+        });
         console.log('User data loaded from Firebase:', data);
       } else {
-        // If user data doesn't exist, create it
+        // Create minimal user data (excluding phoneNumber, usertype, createdAt)
         const newUserData: UserData = {
           uid: firebaseUser.uid,
-          phoneNumber: firebaseUser.phoneNumber,
-          mobileNumber: firebaseUser.phoneNumber,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          userType: 'user',
-          createdAt: Date.now(),
           address: '',
-          isActive: true,
         };
         
         await set(userRef, {
