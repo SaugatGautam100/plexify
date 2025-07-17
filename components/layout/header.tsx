@@ -101,6 +101,9 @@ export default function Header() {
     if (userData?.displayName) {
       return userData.displayName;
     }
+    if (userData?.mobileNumber) {
+      return userData.mobileNumber.replace(/^\+977/, '').replace(/^\+/, '');
+    }
     if (userData?.phoneNumber) {
       return userData.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
     }
@@ -114,7 +117,7 @@ export default function Header() {
   };
 
   const getUserContactInfo = () => {
-    return userData?.email || userData?.phoneNumber || user?.email || user?.phoneNumber || '';
+    return userData?.email || userData?.mobileNumber || userData?.phoneNumber || user?.email || user?.phoneNumber || '';
   };
 
   return (

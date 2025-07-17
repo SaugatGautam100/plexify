@@ -71,7 +71,8 @@ export default function ProfilePage() {
         ...prev,
         name: userData.displayName || '',
         email: userData.email || '',
-        phone: userData.phoneNumber || '',
+        phone: userData.mobileNumber || userData.phoneNumber || '',
+        address: userData.address || '',
         createdAt: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
       }));
     }
@@ -108,7 +109,7 @@ export default function ProfilePage() {
         ...currentData,
         displayName: profileData.name,
         email: profileData.email,
-        phoneNumber: profileData.phone,
+        mobileNumber: profileData.phone,
         address: profileData.address,
         gender: profileData.gender,
         bio: profileData.bio,

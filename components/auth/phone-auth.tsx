@@ -71,12 +71,13 @@ export default function PhoneAuth() {
         const userData = {
           uid: user.uid,
           phoneNumber: user.phoneNumber,
+          mobileNumber: user.phoneNumber, // Save mobile number explicitly
           email: user.email || null,
           displayName: user.displayName || null,
           photoURL: user.photoURL || null,
           userType: 'user', // Default user type
           createdAt: Date.now(),
-          lastLoginAt: Date.now(),
+          address: '', // Initialize empty address
           isActive: true,
           // Initialize empty cart and wishlist
           UserCartItems: {},
@@ -93,7 +94,10 @@ export default function PhoneAuth() {
       } else {
         // Update existing user's last login
         const existingData = snapshot.val();
-        await set(ref(db, `AllUsers/Users/${user.uid}/lastLoginAt`), Date.now());
+        // Update mobile number if it's different
+        if (existingData.mobileNumber !== user.phoneNumber) {
+          await set(ref(db, `AllUsers/Users/${user.uid}/mobileNumber`), user.phoneNumber);
+        }
         
         console.log('Existing user login updated:', existingData);
         

@@ -9,12 +9,13 @@ import app from '@/app/firebaseConfig';
 interface UserData {
   uid: string;
   phoneNumber: string | null;
+  mobileNumber: string | null;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
   userType: 'user' | 'seller';
   createdAt: number;
-  lastLoginAt: number;
+  address: string;
   isActive: boolean;
 }
 
@@ -54,12 +55,13 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         const newUserData: UserData = {
           uid: firebaseUser.uid,
           phoneNumber: firebaseUser.phoneNumber,
+          mobileNumber: firebaseUser.phoneNumber,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
           userType: 'user',
           createdAt: Date.now(),
-          lastLoginAt: Date.now(),
+          address: '',
           isActive: true,
         };
         
@@ -102,13 +104,6 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
 
   const logout = async () => {
     try {
-      // Update user's last activity before logout
-      if (user) {
-        const db = getDatabase(app);
-        const userRef = ref(db, `AllUsers/Users/${user.uid}/lastLoginAt`);
-        await set(userRef, Date.now());
-      }
-      
       await signOut(auth);
       setUserData(null);
     } catch (error) {
