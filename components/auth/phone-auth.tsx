@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,28 +22,45 @@ export default function PhoneAuth() {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
-  const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          console.log('reCAPTCHA solved');
-        },
-        'expired-callback': () => {
-          console.log('reCAPTCHA expired');
-          toast({
-            title: 'reCAPTCHA Expired',
-            description: 'Please try again.',
-            variant: 'destructive',
+  useEffect(() => {
+    // Initialize reCAPTCHA when component mounts
+    const initializeRecaptcha = () => {
+      try {
+        if (!recaptchaVerifier && typeof window !== 'undefined') {
+          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: (response: any) => {
+              console.log('reCAPTCHA solved:', response);
+            },
+            'expired-callback': () => {
+              console.log('reCAPTCHA expired');
+              toast({
+                title: 'reCAPTCHA Expired',
+                description: 'Please try again.',
+                variant: 'destructive',
+              });
+            }
           });
+          setRecaptchaVerifier(verifier);
         }
-      });
-    }
-    return (window as any).recaptchaVerifier;
-  };
+      } catch (error) {
+        console.error('Error initializing reCAPTCHA:', error);
+      }
+    };
+
+    initializeRecaptcha();
+
+    // Cleanup function
+    return () => {
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+      }
+    };
+  }, []);
 
   const saveUserToDatabase = async (user: any) => {
     try {
@@ -58,15 +75,14 @@ export default function PhoneAuth() {
         const userData = {
           uid: user.uid,
           phoneNumber: user.phoneNumber,
-          mobileNumber: user.phoneNumber, // Save mobile number explicitly
+          mobileNumber: user.phoneNumber,
           email: user.email || null,
           displayName: user.displayName || null,
           photoURL: user.photoURL || null,
-          userType: 'user', // Default user type
+          userType: 'user',
           createdAt: Date.now(),
-          address: '', // Initialize empty address
+          address: '',
           isActive: true,
-          // Initialize empty cart and wishlist
           UserCartItems: {},
           UserWishlistItems: {}
         };
@@ -81,7 +97,6 @@ export default function PhoneAuth() {
       } else {
         // Update existing user's last login
         const existingData = snapshot.val();
-        // Update mobile number if it's different
         if (existingData.mobileNumber !== user.phoneNumber) {
           await set(ref(db, `AllUsers/Users/${user.uid}/mobileNumber`), user.phoneNumber);
         }
@@ -115,10 +130,9 @@ export default function PhoneAuth() {
       return;
     }
 
-    // Format phone number (ensure it starts with country code)
+    // Format phone number
     let formattedPhone = phoneNumber.trim();
     if (!formattedPhone.startsWith('+')) {
-      // Default to Nepal (+977) - you can change this
       formattedPhone = '+977' + formattedPhone.replace(/^0+/, '');
     }
 
@@ -138,7 +152,11 @@ export default function PhoneAuth() {
     try {
       console.log('Sending OTP to:', formattedPhone);
       
-      const recaptchaVerifier = setupRecaptcha();
+      // Ensure reCAPTCHA is initialized
+      if (!recaptchaVerifier) {
+        throw new Error('reCAPTCHA not initialized');
+      }
+
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
       setConfirmationResult(confirmation);
       setStep('otp');
@@ -149,6 +167,7 @@ export default function PhoneAuth() {
       });
     } catch (error: any) {
       console.error('Error sending OTP:', error);
+      
       let errorMessage = 'Failed to send OTP. Please try again.';
       
       switch (error.code) {
@@ -161,6 +180,12 @@ export default function PhoneAuth() {
         case 'auth/quota-exceeded':
           errorMessage = 'SMS quota exceeded. Please try again later.';
           break;
+        case 'auth/invalid-app-credential':
+          errorMessage = 'Firebase configuration error. Please check your setup.';
+          break;
+        case 'auth/captcha-check-failed':
+          errorMessage = 'reCAPTCHA verification failed. Please try again.';
+          break;
         default:
           errorMessage = error.message || 'Failed to send OTP. Please try again.';
       }
@@ -170,6 +195,22 @@ export default function PhoneAuth() {
         description: errorMessage,
         variant: 'destructive',
       });
+
+      // Reset reCAPTCHA on error
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+        setRecaptchaVerifier(null);
+        // Reinitialize reCAPTCHA
+        setTimeout(() => {
+          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: (response: any) => {
+              console.log('reCAPTCHA solved:', response);
+            }
+          });
+          setRecaptchaVerifier(verifier);
+        }, 1000);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -242,6 +283,22 @@ export default function PhoneAuth() {
     setOtp('');
     setStep('phone');
     setConfirmationResult(null);
+    
+    // Clear and reinitialize reCAPTCHA
+    if (recaptchaVerifier) {
+      recaptchaVerifier.clear();
+      setRecaptchaVerifier(null);
+    }
+    
+    setTimeout(() => {
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: (response: any) => {
+          console.log('reCAPTCHA solved:', response);
+        }
+      });
+      setRecaptchaVerifier(verifier);
+    }, 1000);
     
     toast({
       title: 'Ready to resend',
