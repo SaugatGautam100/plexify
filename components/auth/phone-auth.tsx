@@ -75,14 +75,8 @@ export default function PhoneAuth() {
         const userData = {
           uid: user.uid,
           phoneNumber: user.phoneNumber,
-          mobileNumber: user.phoneNumber,
-          email: user.email || null,
-          displayName: user.displayName || null,
-          photoURL: user.photoURL || null,
           userType: 'user',
-          createdAt: Date.now(),
           address: '',
-          isActive: true,
           UserCartItems: {},
           UserWishlistItems: {}
         };
