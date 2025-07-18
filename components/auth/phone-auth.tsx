@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/app/firebaseConfig';
 import { 
   signInWithPhoneNumber, 
+  RecaptchaVerifier,
   ConfirmationResult
 } from 'firebase/auth';
 import { getDatabase, ref, set, get } from 'firebase/database';
@@ -24,6 +25,25 @@ export default function PhoneAuth() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const setupRecaptcha = () => {
+    if (!(window as any).recaptchaVerifier) {
+      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {
+          console.log('reCAPTCHA solved');
+        },
+        'expired-callback': () => {
+          console.log('reCAPTCHA expired');
+          toast({
+            title: 'reCAPTCHA Expired',
+            description: 'Please try again.',
+            variant: 'destructive',
+          });
+        }
+      });
+    }
+    return (window as any).recaptchaVerifier;
+  };
 
   const saveUserToDatabase = async (user: any) => {
     try {
@@ -118,19 +138,8 @@ export default function PhoneAuth() {
     try {
       console.log('Sending OTP to:', formattedPhone);
       
-      // Note: Without reCAPTCHA, you'll need to configure Firebase to allow phone auth without verification
-      // This typically requires enabling "Phone number sign-in" in Firebase Console
-      // and may have limitations in production environments
-      toast({
-        title: 'Feature Unavailable',
-        description: 'Phone authentication requires reCAPTCHA verification for security. Please contact support.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-      return;
-      
-      // Commented out the original phone auth code since it requires reCAPTCHA
-      // const confirmation = await signInWithPhoneNumber(auth, formattedPhone);
+      const recaptchaVerifier = setupRecaptcha();
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
       setConfirmationResult(confirmation);
       setStep('otp');
       
@@ -260,12 +269,6 @@ export default function PhoneAuth() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> Phone authentication is currently disabled as it requires reCAPTCHA verification for security purposes.
-          </p>
-        </div>
-        
         {step === 'phone' ? (
           <form onSubmit={handleSendOTP} className="space-y-4">
             <div className="space-y-2">
@@ -277,15 +280,15 @@ export default function PhoneAuth() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
-                disabled={true}
               />
               <p className="text-xs text-gray-500">
                 Include country code (e.g., +977 for Nepal)
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={true}>
-              Send OTP (Currently Disabled)
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Sending...' : 'Send OTP'}
             </Button>
+            <div id="recaptcha-container"></div>
           </form>
         ) : (
           <form onSubmit={handleVerifyOTP} className="space-y-4">
