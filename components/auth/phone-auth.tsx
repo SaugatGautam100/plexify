@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/app/firebaseConfig';
 import { 
-  RecaptchaVerifier, 
   signInWithPhoneNumber, 
   ConfirmationResult
 } from 'firebase/auth';
@@ -25,38 +24,6 @@ export default function PhoneAuth() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const setupRecaptcha = () => {
-    // Clear any existing recaptcha
-    const existingRecaptcha = document.getElementById('recaptcha-container');
-    if (existingRecaptcha) {
-      existingRecaptcha.innerHTML = '';
-    }
-
-    try {
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          console.log('reCAPTCHA solved');
-        },
-        'expired-callback': () => {
-          toast({
-            title: 'reCAPTCHA Expired',
-            description: 'Please try again.',
-            variant: 'destructive',
-          });
-        }
-      });
-      return verifier;
-    } catch (error) {
-      console.error('Error setting up reCAPTCHA:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to initialize security verification. Please refresh the page.',
-        variant: 'destructive',
-      });
-      return null;
-    }
-  };
 
   const saveUserToDatabase = async (user: any) => {
     try {
@@ -149,14 +116,21 @@ export default function PhoneAuth() {
     setIsLoading(true);
 
     try {
-      const verifier = setupRecaptcha();
-      if (!verifier) {
-        setIsLoading(false);
-        return;
-      }
-
       console.log('Sending OTP to:', formattedPhone);
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
+      
+      // Note: Without reCAPTCHA, you'll need to configure Firebase to allow phone auth without verification
+      // This typically requires enabling "Phone number sign-in" in Firebase Console
+      // and may have limitations in production environments
+      toast({
+        title: 'Feature Unavailable',
+        description: 'Phone authentication requires reCAPTCHA verification for security. Please contact support.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+      
+      // Commented out the original phone auth code since it requires reCAPTCHA
+      // const confirmation = await signInWithPhoneNumber(auth, formattedPhone);
       setConfirmationResult(confirmation);
       setStep('otp');
       
@@ -177,9 +151,6 @@ export default function PhoneAuth() {
           break;
         case 'auth/quota-exceeded':
           errorMessage = 'SMS quota exceeded. Please try again later.';
-          break;
-        case 'auth/captcha-check-failed':
-          errorMessage = 'Security verification failed. Please try again.';
           break;
         default:
           errorMessage = error.message || 'Failed to send OTP. Please try again.';
@@ -289,6 +260,12 @@ export default function PhoneAuth() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> Phone authentication is currently disabled as it requires reCAPTCHA verification for security purposes.
+          </p>
+        </div>
+        
         {step === 'phone' ? (
           <form onSubmit={handleSendOTP} className="space-y-4">
             <div className="space-y-2">
@@ -300,14 +277,14 @@ export default function PhoneAuth() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={true}
               />
               <p className="text-xs text-gray-500">
                 Include country code (e.g., +977 for Nepal)
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Sending OTP...' : 'Send OTP'}
+            <Button type="submit" className="w-full" disabled={true}>
+              Send OTP (Currently Disabled)
             </Button>
           </form>
         ) : (
@@ -361,9 +338,6 @@ export default function PhoneAuth() {
             </div>
           </form>
         )}
-        
-        {/* reCAPTCHA container */}
-        <div id="recaptcha-container" className="mt-4"></div>
       </CardContent>
     </Card>
   );
