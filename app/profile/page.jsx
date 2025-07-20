@@ -1,5 +1,5 @@
 'use client';
-import { User, MapPin, Package, Settings, Edit, Plus, Trash2, Save } from 'lucide-react';
+import { User, MapPin, Package, Settings, Edit, Plus, Trash2, Save, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -223,13 +223,13 @@ export default function ProfilePage() {
           <AvatarUpload
             currentAvatar={profileData.avatar}
             onAvatarUpdate={handleAvatarUpdate}
-            userName={userData?.displayName || user?.displayName || 'User'}
+            userName={profileData.name || 'User'}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{userData?.displayName || user?.displayName || 'User'}</h1>
-            <p className="text-gray-600">{userData?.email || profileData.phone}</p>
+            <h1 className="text-3xl font-bold">{profileData.name || 'User'}</h1>
+            <p className="text-gray-600">{profileData.email || profileData.phone}</p>
             <p className="text-sm text-gray-500">
-              Member since {userData?.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear()}
+              Member since {new Date(profileData.createdAt).getFullYear()}
             </p>
             {userData && (
               <Badge variant="outline" className="mt-2">
@@ -294,6 +294,29 @@ export default function ProfilePage() {
                       onChange={(e) => handleProfileUpdate('address', e.target.value)}
                       disabled={!isEditing}
                     />
+                  </div>
+                </div>
+                {userData?.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="font-medium">{userData.email}</p>
+                      <p className="text-sm text-gray-600">Email Address</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium">{profileData.phone || 'Not provided'}</p>
+                    <p className="text-sm text-gray-600">Phone Number</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium">{profileData.address || 'Not provided'}</p>
+                    <p className="text-sm text-gray-600">Address</p>
                   </div>
                 </div>
               </CardContent>
@@ -474,31 +497,39 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-4">
                 {profileData.orders.map((order) => (
-            {userData?.email && (
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="font-medium">{userData.email}</p>
-                  <p className="text-sm text-gray-600">Email Address</p>
-                </div>
-              </div>
-            )}
-                          </Badge>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {order.items} item{order.items > 1 ? 's' : ''}
-                          </p>
-                <p className="font-medium">{profileData.phone || 'Not provided'}</p>
+                  <Card key={order.id}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                      <div>
+                        <CardTitle className="text-lg">Order #{order.id}</CardTitle>
+                        <p className="text-sm text-gray-600">{order.date}</p>
                       </div>
+                      <div className="text-right">
+                        <Badge variant={getStatusColor(order.status)}>
+                          {order.status}
+                        </Badge>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {order.items} item{order.items > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
                       <Separator className="my-4" />
                       <div className="flex justify-between items-center">
                         <span className="font-semibold">Total: ${order.total}</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm">
                             View Details
-                <p className="font-medium">{profileData.address || 'Not provided'}</p>
-                <p className="text-sm text-gray-600">Address</p>
+                          </Button>
+                          <Button variant="outline" size="sm">
                             Track Order
                           </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Settings Tab */}
