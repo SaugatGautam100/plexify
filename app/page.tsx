@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -55,7 +54,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen font-inter">
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hero-section" id='hero-section'>
         <div className="container mx-auto px-4 py-16">
@@ -76,36 +75,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Shop by Category</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((category) => (
-              <Link key={category.id} href={`/category/${category.slug}`}>
-                <Card className="hover:shadow-lg transition-shadow duration-300">
-                  <CardContent className="p-6">
-                    <div className="aspect-square relative mb-4 bg-gray-100 rounded-lg overflow-hidden">
-                      <Image
-                        src={category.image}
-                        alt={category.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
-                    <p className="text-gray-600 mb-4">{category.description}</p>
-                    <Button variant="outline" className="w-full">
-                      Shop Now
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Featured Products */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
@@ -118,11 +87,13 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Ensures 2 columns on small devices */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {featuredProducts.map((item) => (
               <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
                 <Link href={`/product/${item.productId}`} className="block">
-                  <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
+                  {/* Changed background to white and added a light bottom border */}
+                  <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-white border-b border-gray-200">
                     {item.productImageUris && item.productImageUris.length > 0 ? (
                       <>
                         <Image
@@ -164,6 +135,40 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Categories Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Shop by Category</h2>
+          {/* Ensures 2 columns on small devices */}
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {categories.map((category) => (
+              <Link key={category.id} href={`/category/${category.slug}`}>
+                <Card className="hover:shadow-lg transition-shadow duration-300">
+                  {/* Changed padding from p-6 to p-4 for less padding */}
+                  <CardContent className="p-4">
+                    <div className="aspect-square relative mb-4 bg-gray-100 rounded-lg overflow-hidden">
+                      <Image
+                        src={category.image}
+                        alt={category.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
+                    <p className="text-gray-600 mb-4">{category.description}</p>
+                    <Button variant="outline" className="w-full">
+                      Shop Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      
 
       {/* Features Section */}
       <section className="py-16 bg-gray-50">

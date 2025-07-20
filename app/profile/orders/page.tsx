@@ -1,48 +1,74 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import { Package, Calendar, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useSession } from 'next-auth/react';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context'; // Assuming this provides user and loading state
+import { getDatabase, ref, onValue, off } from 'firebase/database'; // Import Firebase functions
+import app from '../../firebaseConfig'; // Import your Firebase config
 
 export default function OrdersPage() {
+  const { user, loading: authLoading } = useFirebaseAuth(); // Get user and auth loading state
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-  const { data: session, status } = useSession();
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session || session.user?.userType !== 'user') {
-      router.push('/login');
+    if (authLoading) {
+      // Still loading authentication status
       return;
     }
 
-    fetchOrders();
-  }, [session, status, router]);
-
-  const fetchOrders = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/orders');
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
+    if (!user) {
+      // User is not logged in, or session expired.
+      // You might want to redirect to login here if not handled by useFirebaseAuth.
       setIsLoading(false);
+      setMessage("Please log in to view your orders.");
+      setOrders([]);
+      return;
     }
-  };
 
-  if (status === 'loading' || isLoading) {
+    const db = getDatabase(app);
+    const userOrdersRef = ref(db, `AllUsers/Users/${user.uid}/UserOrders`);
+
+    setIsLoading(true);
+    setMessage('');
+
+    // Set up a real-time listener for user's orders
+    const unsubscribe = onValue(userOrdersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const ordersData = snapshot.val();
+        // Convert the object of orders into an array, sorting by createdAt descending
+        const fetchedOrders = Object.keys(ordersData).map(key => ({
+          id: key,
+          ...ordersData[key]
+        })).sort((a, b) => b.createdAt - a.createdAt); // Sort by most recent first
+        setOrders(fetchedOrders);
+        setMessage('');
+      } else {
+        setOrders([]);
+        setMessage("No orders found.");
+      }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching orders:", error);
+      setMessage(`Failed to load orders: ${error.message}`);
+      setOrders([]);
+      setIsLoading(false);
+    });
+
+    // Clean up the listener when the component unmounts or user changes
+    return () => {
+      off(userOrdersRef, 'value', unsubscribe);
+    };
+  }, [user, authLoading]); // Re-run effect when user or authLoading changes
+
+  if (isLoading || authLoading) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <p>Loading orders...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-500 text-lg">Loading orders...</p>
       </div>
     );
   }
@@ -51,6 +77,17 @@ export default function OrdersPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+
+        {message && (
+          <div
+            className={`border px-4 py-3 rounded-lg relative mb-6 ${
+              message.includes('successfully') ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'
+            }`}
+            role="alert"
+          >
+            <span className="block sm:inline">{message}</span>
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <Card>
@@ -63,7 +100,7 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => (
-              <Card key={order.id}>
+              <Card key={order.orderId}> {/* Use order.orderId as key */}
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -95,23 +132,23 @@ export default function OrdersPage() {
                   <div className="space-y-4">
                     {/* Order Items */}
                     <div className="space-y-3">
-                      {order.items.map((item) => (
+                      {order.items && order.items.map((item) => ( // Ensure items exist before mapping
                         <div key={item.productId} className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg">
-                            <img 
-                              src={item.productImage} 
-                              alt={item.productName}
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={item.productImage || 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image'} // Fallback image
+                              alt={item.productTitle || 'Product Image'} // Use productTitle for alt
                               className="w-full h-full object-cover rounded-lg"
                             />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium">{item.productName}</h4>
+                            <h4 className="font-medium">{item.productTitle}</h4> {/* Use productTitle */}
                             <p className="text-sm text-gray-600">
-                              Qty: {item.quantity} × ${item.price}
+                              Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)} {/* Use productQuantity and productPrice */}
                             </p>
                           </div>
                           <div className="font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
                           </div>
                         </div>
                       ))}
@@ -121,7 +158,7 @@ export default function OrdersPage() {
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold">Total</span>
-                        <span className="font-bold text-lg">${order.total.toFixed(2)}</span>
+                        <span className="font-bold text-lg">Rs.{order.finalTotal.toFixed(2)}</span> {/* Use finalTotal */}
                       </div>
                     </div>
                   </div>

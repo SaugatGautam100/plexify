@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import app from "../../firebaseConfig";
 import { getDatabase, ref, get, push, set, update } from "firebase/database";
@@ -381,7 +380,8 @@ function ProductDetailPage() {
                   </p>
                 </div>
 
-                <div className="flex gap-4 mt-6 items-center">
+                {/* Added flex-wrap here to ensure buttons wrap on small screens */}
+                <div className="flex flex-wrap gap-4 mt-6 items-center">
                   <div className="flex items-center">
                     <label htmlFor="quantity" className="mr-2 text-md font-semibold">Quantity:</label>
                     <Input

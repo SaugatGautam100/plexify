@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import CartItem from '@/components/cart/cart-item';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { getDatabase, ref, get, remove } from 'firebase/database';
+import { getDatabase, ref, get, remove, push, set } from 'firebase/database'; // Added push and set
+import { getAuth } from 'firebase/auth'; // Added getAuth
 import app from '../firebaseConfig';
 
 /**
@@ -22,11 +22,13 @@ import app from '../firebaseConfig';
 export default function CartPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
-const [items, setItems] = useState<Array<{ id: string; productPrice: number; productQuantity: number; productTitle: string; productImageUris?: string[] }>>([]);  const [cartLoading, setCartLoading] = useState(true);
+  const [items, setItems] = useState<Array<{ id: string; productPrice: number; productQuantity: number; productTitle: string; productImageUris?: string[]; productCategory: string; productStock: number; productUnit: string; productType: string; adminUid: string; productRandomId?: string }>>([]);
+  const [cartLoading, setCartLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false); // For item deletion confirmation
   const [dialogItem, setDialogItem] = useState<{ id: string; productTitle: string } | null>(null);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false); // For checkout confirmation
 
   /**
    * Fetches cart items from Firebase Realtime Database for the authenticated user.
@@ -97,7 +99,7 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
    * @param id - The Firebase key of the cart item
    * @param productTitle - The title of the product for feedback
    */
-  const handleDeleteFromCart = async (id, productTitle) => {
+  const handleDeleteFromCart = async (id: string, productTitle: string) => {
     if (!user) {
       setMessage('Please log in to remove items from your cart.');
       return;
@@ -130,7 +132,7 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
    * @param id - The Firebase key of the cart item
    * @param productTitle - The title of the product for the dialog message
    */
-  const openConfirmDialog = (id, productTitle) => {
+  const openConfirmDialog = (id: string, productTitle: string) => {
     console.log("Opening confirm dialog:", { id, productTitle });
     if (!id || !productTitle) {
       console.error("Invalid id or productTitle:", { id, productTitle });
@@ -153,6 +155,90 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
     setDialogOpen(false);
     setDialogItem(null);
   };
+
+  /**
+   * Handles the "Proceed to Checkout" button click, opening the checkout confirmation dialog.
+   */
+  const handleProceedToCheckout = () => {
+    setCheckoutDialogOpen(true);
+  };
+
+  /**
+   * Handles the confirmation of checkout (Cash on Delivery).
+   * Saves the order to Firebase and clears the cart.
+   */
+  const handleConfirmCheckout = async () => {
+    setCheckoutDialogOpen(false); // Close the checkout dialog
+    setMessage(''); // Clear any previous messages
+
+    if (!user) {
+      setMessage("You must be logged in to place an order.");
+      return;
+    }
+    if (items.length === 0) {
+      setMessage("Your cart is empty. Please add items before checking out.");
+      return;
+    }
+
+    try {
+      const db = getDatabase(app);
+      const auth = getAuth(app); // Get auth instance
+      const currentUser = auth.currentUser; // Get current user
+
+      if (!currentUser) {
+        setMessage("Authentication error. Please log in again.");
+        return;
+      }
+
+      const orderRefUser = ref(db, `AllUsers/Users/${currentUser.uid}/UserOrders`);
+      const orderRefAdmin = ref(db, `Admins/AllUserOrders`);
+
+      // Generate a unique key for the new order
+      const newOrderRef = push(orderRefUser); // Use push to get a unique ID
+      const orderId = newOrderRef.key;
+
+      const orderData = {
+        orderId: orderId,
+        userId: currentUser.uid,
+        userEmail: currentUser.email || 'N/A', // Include user email
+        orderNumber: `ORD-${Date.now()}`, // Simple order number
+        createdAt: Date.now(),
+        paymentMethod: 'Cash on Delivery',
+        status: 'pending', // Initial status
+        items: items.map(item => ({
+          productId: item.id,
+          productTitle: item.productTitle,
+          productPrice: item.productPrice,
+          productQuantity: item.productQuantity,
+          productImage: item.productImageUris && item.productImageUris.length > 0 ? item.productImageUris[0] : 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image',
+          productCategory: item.productCategory,
+          productUnit: item.productUnit,
+          productType: item.productType,
+          adminUid: item.adminUid,
+          productRandomId: item.productRandomId || null,
+        })),
+        subtotal: getTotal(),
+        shipping: total > 50 ? 0 : 10,
+        tax: total * 0.08,
+        finalTotal: finalTotal,
+      };
+
+      // Save order to user's orders
+      await set(newOrderRef, orderData);
+
+      // Save order to admin's all orders
+      await set(ref(db, `Admins/AllUserOrders/${orderId}`), orderData);
+
+      // Clear the user's cart after successful order placement
+      await clearCart();
+      setMessage("Order placed successfully! Redirecting to your orders...");
+      router.push('/profile/orders'); // Redirect to orders page
+    } catch (error) {
+      console.error("Error placing order:", error.message, error.code);
+      setMessage(`Failed to place order: ${error.message}`);
+    }
+  };
+
 
   // Fetch cart items when user is authenticated
   useEffect(() => {
@@ -180,6 +266,11 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
 
     return () => clearInterval(interval);
   }, [items]);
+
+  const total = getTotal();
+  const shipping = total > 50 ? 0 : 10;
+  const tax = total * 0.08;
+  const finalTotal = total + shipping + tax;
 
   if (loading || cartLoading) {
     return (
@@ -215,11 +306,6 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
       </div>
     );
   }
-
-  const total = getTotal();
-  const shipping = total > 50 ? 0 : 10;
-  const tax = total * 0.08;
-  const finalTotal = total + shipping + tax;
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
@@ -284,20 +370,19 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
                 <span>Total</span>
                 <span>Rs.{finalTotal.toFixed(2)}</span>
               </div>
-              
+
               {shipping > 0 && (
                 <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                   Add Rs.{(50 - total).toFixed(2)} more to get free shipping!
                 </div>
               )}
 
-              <Link href="/checkout">
-                <Button className="w-full" size="lg">
-                  Proceed to Checkout
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-              
+              {/* Modified to open checkout dialog */}
+              <Button className="w-full" size="lg" onClick={handleProceedToCheckout}>
+                Proceed to Checkout
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+
               <Link href="/products">
                 <Button variant="outline" className="w-full">
                   Continue Shopping
@@ -308,6 +393,7 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
         </div>
       </div>
 
+      {/* Dialog for item deletion confirmation */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         console.log("Dialog open state changed:", open);
         setDialogOpen(open);
@@ -339,6 +425,35 @@ const [items, setItems] = useState<Array<{ id: string; productPrice: number; pro
               aria-label={`Confirm removal of ${dialogItem?.productTitle || 'this item'}`}
             >
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Dialog for checkout confirmation */}
+      <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
+        <DialogContent className="bg-white rounded-lg shadow-lg max-w-md p-6 font-inter">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">Proceed to Checkout?</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Do you want to continue with **Cash on Delivery**?
+              <br />
+              <span className="font-semibold text-blue-600">Other payment options coming soon!</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setCheckoutDialogOpen(false)}
+              className="rounded-lg border-gray-300 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmCheckout}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Yes, Continue with Cash on Delivery
             </Button>
           </DialogFooter>
         </DialogContent>
