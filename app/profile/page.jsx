@@ -65,12 +65,12 @@ export default function ProfilePage() {
     if (userData) {
       setProfileData(prev => ({
         ...prev,
-        phone: userData.mobileNumber || userData.phoneNumber || '',
+        phone: userData.mobileNumber || userData.phoneNumber || user?.phoneNumber?.replace(/^\+977/, '') || '',
         address: userData.address || '',
         createdAt: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
       }));
     }
-  }, [userData]);
+  }, [userData, user]);
 
   const handleProfileUpdate = (field, value) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
@@ -203,6 +203,24 @@ export default function ProfilePage() {
     }
   };
 
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (userData?.displayName) return userData.displayName;
+    if (userData?.name) return userData.name;
+    if (user?.displayName) return user.displayName;
+    return 'User';
+  };
+
+  // Get user contact info
+  const getUserContactInfo = () => {
+    if (userData?.email) return userData.email;
+    if (user?.email) return user.email;
+    if (profileData.phone) return profileData.phone;
+    if (userData?.mobileNumber) return userData.mobileNumber;
+    if (user?.phoneNumber) return user.phoneNumber;
+    return 'No contact info';
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
@@ -223,11 +241,11 @@ export default function ProfilePage() {
           <AvatarUpload
             currentAvatar={profileData.avatar}
             onAvatarUpdate={handleAvatarUpdate}
-            userName={userData?.displayName || user?.displayName || 'User'}
+            userName={getUserDisplayName()}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{userData?.displayName || user?.displayName || 'User'}</h1>
-            <p className="text-gray-600">{userData?.email || profileData.phone}</p>
+            <h1 className="text-3xl font-bold">{getUserDisplayName()}</h1>
+            <p className="text-gray-600">{getUserContactInfo()}</p>
             <p className="text-sm text-gray-500">
               Member since {userData?.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear()}
             </p>
@@ -283,6 +301,7 @@ export default function ProfilePage() {
                       value={profileData.phone}
                       onChange={(e) => handleProfileUpdate('phone', e.target.value)}
                       disabled={!isEditing}
+                      placeholder="98XXXXXXXX"
                     />
                   </div>
                   <div className="space-y-2">
@@ -293,30 +312,35 @@ export default function ProfilePage() {
                       value={profileData.address}
                       onChange={(e) => handleProfileUpdate('address', e.target.value)}
                       disabled={!isEditing}
+                      placeholder="Your address"
                     />
                   </div>
                 </div>
-                {userData?.email && (
+
+                {/* Display current information */}
+                <div className="space-y-4 mt-6">
+                  {(userData?.email || user?.email) && (
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="font-medium">{userData?.email || user?.email}</p>
+                        <p className="text-sm text-gray-600">Email Address</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-gray-400" />
+                    <User className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="font-medium">{userData.email}</p>
-                      <p className="text-sm text-gray-600">Email Address</p>
+                      <p className="font-medium">{profileData.phone || 'Not provided'}</p>
+                      <p className="text-sm text-gray-600">Phone Number</p>
                     </div>
                   </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium">{profileData.phone || 'Not provided'}</p>
-                    <p className="text-sm text-gray-600">Phone Number</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium">{profileData.address || 'Not provided'}</p>
-                    <p className="text-sm text-gray-600">Address</p>
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="font-medium">{profileData.address || 'Not provided'}</p>
+                      <p className="text-sm text-gray-600">Address</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
