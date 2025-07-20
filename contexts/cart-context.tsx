@@ -19,21 +19,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   // Load cart from localStorage on mount
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error('Error loading cart from localStorage:', error);
-      }
-    }
-  }, []);
+  // useEffect(() => {
+  //   const savedCart = localStorage.getItem('cart');
+  //   if (savedCart) {
+  //     try {
+  //       setItems(JSON.parse(savedCart));
+  //     } catch (error) {
+  //       console.error('Error loading cart from localStorage:', error);
+  //     }
+  //   }
+  // }, []);
 
-  // Save cart to localStorage whenever items change
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(items));
-  }, [items]);
+  // // Save cart to localStorage whenever items change
+  // useEffect(() => {
+  //   localStorage.setItem('cart', JSON.stringify(items));
+  // }, [items]);
 
   const addItem = (product: Product, quantity: number = 1) => {
     if (!product || !product.id) {

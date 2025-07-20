@@ -29,9 +29,9 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   // }, []);
 
   // Save wishlist to localStorage whenever items change
-  useEffect(() => {
-    localStorage.setItem('wishlist', JSON.stringify(items));
-  }, [items]);
+  // useEffect(() => {
+  //   localStorage.setItem('wishlist', JSON.stringify(items));
+  // }, [items]);
 
   const addItem = (product: Product) => {
     if (!product || !product.id) {
