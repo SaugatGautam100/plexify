@@ -223,13 +223,13 @@ export default function ProfilePage() {
           <AvatarUpload
             currentAvatar={profileData.avatar}
             onAvatarUpdate={handleAvatarUpdate}
-            userName={profileData.name || 'User'}
+            userName={userData?.displayName || user?.displayName || 'User'}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{profileData.name || 'User'}</h1>
-            <p className="text-gray-600">{profileData.email || profileData.phone}</p>
+            <h1 className="text-3xl font-bold">{userData?.displayName || user?.displayName || 'User'}</h1>
+            <p className="text-gray-600">{userData?.email || profileData.phone}</p>
             <p className="text-sm text-gray-500">
-              Member since {new Date(profileData.createdAt).getFullYear()}
+              Member since {userData?.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear()}
             </p>
             {userData && (
               <Badge variant="outline" className="mt-2">
