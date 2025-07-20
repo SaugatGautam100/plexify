@@ -17,16 +17,16 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Product[]>([]);
 
   // Load wishlist from localStorage on mount
-  useEffect(() => {
-    const savedWishlist = localStorage.getItem('wishlist');
-    if (savedWishlist) {
-      try {
-        setItems(JSON.parse(savedWishlist));
-      } catch (error) {
-        console.error('Error loading wishlist from localStorage:', error);
-      }
-    }
-  }, []);
+  // useEffect(() => {
+  //   // const savedWishlist = localStorage.getItem('wishlist');
+  //   if (savedWishlist) {
+  //     try {
+  //       setItems(JSON.parse(savedWishlist));
+  //     } catch (error) {
+  //       console.error('Error loading wishlist from localStorage:', error);
+  //     }
+  //   }
+  // }, []);
 
   // Save wishlist to localStorage whenever items change
   useEffect(() => {
