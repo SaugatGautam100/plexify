@@ -11,70 +11,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { useSession } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
+import { getDatabase, ref, set, get } from 'firebase/database';
+import app from '@/app/firebaseConfig';
+import { useRouter } from 'next/navigation';
 
 import AvatarUpload from '@/components/profile/avatar-upload';
 
 export default function ProfilePage() {
-  const { data: session } = useSession(); // Get session data
+  const { user, userData, loading, refreshUserData } = useFirebaseAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
-  const [user, setUser] = useState({
-    name: session?.user?.name || 'John Doe',
-    email: session?.user?.email || 'john.doe@example.com',
-    phone: '123-456-7890',
-    address: '123 Main St',
-    gender: 'male',
-    bio: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-    createdAt: '2023-01-15T10:00:00Z',
-    addresses: [
-      {
-        id: '1',
-        type: 'home',
-        name: 'Primary Home',
-        street: '123 Main St',
-        city: 'Anytown',
-        state: 'CA',
-        zipCode: '90210',
-        country: 'USA',
-        isDefault: true,
-      },
-      {
-        id: '2',
-        type: 'work',
-        name: 'Office Address',
-        street: '456 Business Ave',
-        city: 'Metropolis',
-        state: 'NY',
-        zipCode: '10001',
-        country: 'USA',
-        isDefault: false,
-      },
-    ],
-    orders: [
-      {
-        id: 'ORD001',
-        date: '2023-03-10',
-        status: 'delivered',
-        items: 3,
-        total: '120.00',
-      },
-      {
-        id: 'ORD002',
-        date: '2023-02-20',
-        status: 'shipped',
-        items: 1,
-        total: '45.50',
-      },
-      {
-        id: 'ORD003',
-        date: '2023-01-05',
-        status: 'processing',
-        items: 2,
-        total: '75.00',
-      },
-    ],
+  const [profileData, setProfileData] = useState({
+
+    phone: '',
+    address: '',
+    addresses: [],
+    orders: [],
     preferences: {
       emailNotifications: true,
       smsNotifications: false,
@@ -94,33 +49,87 @@ export default function ProfilePage() {
     city: '',
     state: '',
     zipCode: '',
-    country: 'USA',
+    country: 'Nepal',
     isDefault: false,
   });
 
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login?returnUrl=/profile');
+    }
+  }, [user, loading, router]);
+
+  // Load user data when available
+  useEffect(() => {
+    if (userData) {
+      setProfileData(prev => ({
+        ...prev,
+        
+        phone: userData.mobileNumber || userData.phoneNumber || '',
+        address: userData.address || '',
+        createdAt: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
+      }));
+    }
+  }, [userData]);
+
   const handleProfileUpdate = (field, value) => {
-    setUser(prev => ({ ...prev, [field]: value }));
+    setProfileData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAvatarUpdate = (newAvatar) => {
-    setUser(prev => ({ ...prev, avatar: newAvatar }));
+    setProfileData(prev => ({ ...prev, avatar: newAvatar }));
   };
 
   const handlePreferenceUpdate = (field, value) => {
-    setUser(prev => ({
+    setProfileData(prev => ({
       ...prev,
       preferences: { ...prev.preferences, [field]: value }
     }));
   };
 
-  const handleSaveProfile = () => {
-    // In a real application, you'd send this data to your backend
-    console.log('Saving profile:', user);
-    setIsEditing(false);
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been successfully updated.',
-    });
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      const db = getDatabase(app);
+      const userRef = ref(db, `AllUsers/Users/${user.uid}`);
+      
+      // Get current user data
+      const snapshot = await get(userRef);
+      const currentData = snapshot.val() || {};
+      
+      // Update user data in Firebase
+      const updatedData = {
+        ...currentData,
+
+        mobileNumber: profileData.phone,
+        address: profileData.address,
+        gender: profileData.gender,
+        bio: profileData.bio,
+        avatar: profileData.avatar,
+        preferences: profileData.preferences,
+        updatedAt: Date.now(),
+      };
+
+      await set(userRef, updatedData);
+      
+      // Refresh user data in context
+      await refreshUserData();
+      
+      setIsEditing(false);
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been successfully updated.',
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update profile. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAddAddress = () => {
@@ -135,10 +144,10 @@ export default function ProfilePage() {
 
     const address = {
       ...newAddress,
-      id: Date.now().toString(), // Simple ID generation
+      id: Date.now().toString(),
     };
 
-    setUser(prev => ({
+    setProfileData(prev => ({
       ...prev,
       addresses: [...prev.addresses, address]
     }));
@@ -150,7 +159,7 @@ export default function ProfilePage() {
       city: '',
       state: '',
       zipCode: '',
-      country: 'USA',
+      country: 'Nepal',
       isDefault: false,
     });
 
@@ -162,7 +171,7 @@ export default function ProfilePage() {
   };
 
   const handleDeleteAddress = (addressId) => {
-    setUser(prev => ({
+    setProfileData(prev => ({
       ...prev,
       addresses: prev.addresses.filter(addr => addr.id !== addressId)
     }));
@@ -173,7 +182,7 @@ export default function ProfilePage() {
   };
 
   const handleSetDefaultAddress = (addressId) => {
-    setUser(prev => ({
+    setProfileData(prev => ({
       ...prev,
       addresses: prev.addresses.map(addr => ({
         ...addr,
@@ -195,19 +204,39 @@ export default function ProfilePage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-6 mb-8">
           <AvatarUpload
-            currentAvatar={user.avatar}
+            currentAvatar={profileData.avatar}
             onAvatarUpdate={handleAvatarUpdate}
+            userName={profileData.name || 'User'}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{user.name}</h1>
-            <p className="text-gray-600">{user.email}</p>
-            <p className="text-sm text-gray-500">Member since {new Date(user.createdAt).getFullYear()}</p>
+            <h1 className="text-3xl font-bold">{profileData.name || 'User'}</h1>
+            <p className="text-gray-600">{profileData.email || profileData.phone}</p>
+            <p className="text-sm text-gray-500">
+              Member since {new Date(profileData.createdAt).getFullYear()}
+            </p>
+            {userData && (
+              <Badge variant="outline" className="mt-2">
+                {userData.userType === 'seller' ? 'Seller Account' : 'Customer Account'}
+              </Badge>
+            )}
           </div>
           <Button
             variant={isEditing ? "outline" : "default"}
@@ -247,30 +276,11 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={user.name}
-                      onChange={(e) => handleProfileUpdate('name', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={user.email}
-                      onChange={(e) => handleProfileUpdate('email', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
                       type="tel"
-                      value={user.phone}
+                      value={profileData.phone}
                       onChange={(e) => handleProfileUpdate('phone', e.target.value)}
                       disabled={!isEditing}
                     />
@@ -280,39 +290,11 @@ export default function ProfilePage() {
                     <Input
                       id="address"
                       type="text"
-                      value={user.address}
+                      value={profileData.address}
                       onChange={(e) => handleProfileUpdate('address', e.target.value)}
                       disabled={!isEditing}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select
-                      value={user.gender}
-                      onValueChange={(value) => handleProfileUpdate('gender', value)}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={user.bio}
-                    onChange={(e) => handleProfileUpdate('bio', e.target.value)}
-                    disabled={!isEditing}
-                    rows={3}
-                  />
                 </div>
               </CardContent>
             </Card>
@@ -405,6 +387,8 @@ export default function ProfilePage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="Nepal">Nepal</SelectItem>
+                            <SelectItem value="India">India</SelectItem>
                             <SelectItem value="USA">United States</SelectItem>
                             <SelectItem value="Canada">Canada</SelectItem>
                             <SelectItem value="UK">United Kingdom</SelectItem>
@@ -426,7 +410,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {user.addresses.map((address) => (
+              {profileData.addresses.map((address) => (
                 <Card key={address.id} className={address.isDefault ? 'ring-2 ring-blue-500' : ''}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <div className="flex items-center gap-2">
@@ -473,48 +457,61 @@ export default function ProfilePage() {
           <TabsContent value="orders" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Order History</h2>
-              <p className="text-gray-600">{user.orders.length} orders</p>
+              <p className="text-gray-600">{profileData.orders.length} orders</p>
             </div>
 
-            <div className="space-y-4">
-              {user.orders.map((order) => (
-                <Card key={order.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <Package className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <h3 className="font-semibold">Order {order.id}</h3>
-                          <p className="text-sm text-gray-600">
-                            Placed on {new Date(order.date).toLocaleDateString()}
+            {profileData.orders.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-16">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-xl font-semibold mb-2">No orders yet</h3>
+                  <p className="text-gray-600 mb-4">When you place orders, they'll appear here.</p>
+                  <Button onClick={() => router.push('/products')}>
+                    Start Shopping
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {profileData.orders.map((order) => (
+                  <Card key={order.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <Package className="w-5 h-5 text-gray-400" />
+                          <div>
+                            <h3 className="font-semibold">Order {order.id}</h3>
+                            <p className="text-sm text-gray-600">
+                              Placed on {new Date(order.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={getStatusColor(order.status)}>
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </Badge>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {order.items} item{order.items > 1 ? 's' : ''}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant={getStatusColor(order.status)}>
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        </Badge>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {order.items} item{order.items > 1 ? 's' : ''}
-                        </p>
+                      <Separator className="my-4" />
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">Total: ${order.total}</span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            View Details
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            Track Order
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <Separator className="my-4" />
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold">Total: ${order.total}</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          Track Order
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Settings Tab */}
@@ -533,11 +530,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Receive notifications via email</p>
                   </div>
                   <Button
-                    variant={user.preferences.emailNotifications ? "default" : "outline"}
+                    variant={profileData.preferences.emailNotifications ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePreferenceUpdate('emailNotifications', !user.preferences.emailNotifications)}
+                    onClick={() => handlePreferenceUpdate('emailNotifications', !profileData.preferences.emailNotifications)}
                   >
-                    {user.preferences.emailNotifications ? 'Enabled' : 'Disabled'}
+                    {profileData.preferences.emailNotifications ? 'Enabled' : 'Disabled'}
                   </Button>
                 </div>
                 <Separator />
@@ -547,11 +544,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Receive notifications via SMS</p>
                   </div>
                   <Button
-                    variant={user.preferences.smsNotifications ? "default" : "outline"}
+                    variant={profileData.preferences.smsNotifications ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePreferenceUpdate('smsNotifications', !user.preferences.smsNotifications)}
+                    onClick={() => handlePreferenceUpdate('smsNotifications', !profileData.preferences.smsNotifications)}
                   >
-                    {user.preferences.smsNotifications ? 'Enabled' : 'Disabled'}
+                    {profileData.preferences.smsNotifications ? 'Enabled' : 'Disabled'}
                   </Button>
                 </div>
                 <Separator />
@@ -561,11 +558,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Get notified about order status changes</p>
                   </div>
                   <Button
-                    variant={user.preferences.orderUpdates ? "default" : "outline"}
+                    variant={profileData.preferences.orderUpdates ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePreferenceUpdate('orderUpdates', !user.preferences.orderUpdates)}
+                    onClick={() => handlePreferenceUpdate('orderUpdates', !profileData.preferences.orderUpdates)}
                   >
-                    {user.preferences.orderUpdates ? 'Enabled' : 'Disabled'}
+                    {profileData.preferences.orderUpdates ? 'Enabled' : 'Disabled'}
                   </Button>
                 </div>
                 <Separator />
@@ -575,11 +572,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Receive promotional offers and deals</p>
                   </div>
                   <Button
-                    variant={user.preferences.promotions ? "default" : "outline"}
+                    variant={profileData.preferences.promotions ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePreferenceUpdate('promotions', !user.preferences.promotions)}
+                    onClick={() => handlePreferenceUpdate('promotions', !profileData.preferences.promotions)}
                   >
-                    {user.preferences.promotions ? 'Enabled' : 'Disabled'}
+                    {profileData.preferences.promotions ? 'Enabled' : 'Disabled'}
                   </Button>
                 </div>
                 <Separator />
@@ -589,11 +586,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Subscribe to our weekly newsletter</p>
                   </div>
                   <Button
-                    variant={user.preferences.newsletter ? "default" : "outline"}
+                    variant={profileData.preferences.newsletter ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePreferenceUpdate('newsletter', !user.preferences.newsletter)}
+                    onClick={() => handlePreferenceUpdate('newsletter', !profileData.preferences.newsletter)}
                   >
-                    {user.preferences.newsletter ? 'Subscribed' : 'Unsubscribed'}
+                    {profileData.preferences.newsletter ? 'Subscribed' : 'Unsubscribed'}
                   </Button>
                 </div>
               </CardContent>
