@@ -22,8 +22,7 @@ import app from '../firebaseConfig';
 export default function CartPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
-  const [items, setItems] = useState([]);
-  const [cartLoading, setCartLoading] = useState(true);
+const [items, setItems] = useState<Array<{ id: string; productPrice: number; productQuantity: number; productTitle: string; productImageUris?: string[] }>>([]);  const [cartLoading, setCartLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<{ id: string; productTitle: string } | null>(null);

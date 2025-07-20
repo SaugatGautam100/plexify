@@ -373,8 +373,8 @@ function MobileMenu({
                   <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="font-medium">{getUserDisplayName()}</div>
-                  <div className="text-sm text-gray-500">{getUserContactInfo()}</div>
+                  <div className="font-medium">Saugat Gautam</div>
+                  <div className="text-sm text-gray-500">92838323883</div>
                   {userData && (
                     <div className="text-xs text-gray-400">Type: {userData.userType}</div>
                   )}
