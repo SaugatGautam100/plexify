@@ -25,7 +25,6 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const [profileData, setProfileData] = useState({
-
     phone: '',
     address: '',
     addresses: [],
@@ -41,6 +40,7 @@ export default function ProfilePage() {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddressDialog, setShowAddressDialog] = useState(false);
   const [newAddress, setNewAddress] = useState({
     type: 'home',
@@ -65,7 +65,6 @@ export default function ProfilePage() {
     if (userData) {
       setProfileData(prev => ({
         ...prev,
-        
         phone: userData.mobileNumber || userData.phoneNumber || '',
         address: userData.address || '',
         createdAt: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
@@ -91,6 +90,7 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!user) return;
 
+    setIsLoading(true);
     try {
       const db = getDatabase(app);
       const userRef = ref(db, `AllUsers/Users/${user.uid}`);
@@ -102,11 +102,8 @@ export default function ProfilePage() {
       // Update user data in Firebase
       const updatedData = {
         ...currentData,
-
-        mobileNumber: profileData.phone,
+        mobileNumber: profileData.phone || currentData.mobileNumber || user.phoneNumber,
         address: profileData.address,
-        gender: profileData.gender,
-        bio: profileData.bio,
         avatar: profileData.avatar,
         preferences: profileData.preferences,
         updatedAt: Date.now(),
@@ -129,6 +126,8 @@ export default function ProfilePage() {
         description: 'Failed to update profile. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -224,13 +223,13 @@ export default function ProfilePage() {
           <AvatarUpload
             currentAvatar={profileData.avatar}
             onAvatarUpdate={handleAvatarUpdate}
-            userName={profileData.name || 'User'}
+            userName={userData?.displayName || user?.displayName || 'User'}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold">{profileData.name || 'User'}</h1>
-            <p className="text-gray-600">{profileData.email || profileData.phone}</p>
+            <h1 className="text-3xl font-bold">{userData?.displayName || user?.displayName || 'User'}</h1>
+            <p className="text-gray-600">{userData?.email || profileData.phone}</p>
             <p className="text-sm text-gray-500">
-              Member since {new Date(profileData.createdAt).getFullYear()}
+              Member since {userData?.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear()}
             </p>
             {userData && (
               <Badge variant="outline" className="mt-2">
@@ -241,11 +240,12 @@ export default function ProfilePage() {
           <Button
             variant={isEditing ? "outline" : "default"}
             onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
+            disabled={isLoading}
           >
             {isEditing ? (
               <>
                 <Save className="w-4 h-4 mr-2" />
-                Save Changes
+                {isLoading ? 'Saving...' : 'Save Changes'}
               </>
             ) : (
               <>
@@ -474,26 +474,20 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-4">
                 {profileData.orders.map((order) => (
-                  <Card key={order.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <Package className="w-5 h-5 text-gray-400" />
-                          <div>
-                            <h3 className="font-semibold">Order {order.id}</h3>
-                            <p className="text-sm text-gray-600">
-                              Placed on {new Date(order.date).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+            {userData?.email && (
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="font-medium">{userData.email}</p>
+                  <p className="text-sm text-gray-600">Email Address</p>
+                </div>
+              </div>
+            )}
                           </Badge>
                           <p className="text-sm text-gray-600 mt-1">
                             {order.items} item{order.items > 1 ? 's' : ''}
                           </p>
-                        </div>
+                <p className="font-medium">{profileData.phone || 'Not provided'}</p>
                       </div>
                       <Separator className="my-4" />
                       <div className="flex justify-between items-center">
@@ -501,17 +495,10 @@ export default function ProfilePage() {
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm">
                             View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
+                <p className="font-medium">{profileData.address || 'Not provided'}</p>
+                <p className="text-sm text-gray-600">Address</p>
                             Track Order
                           </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
           </TabsContent>
 
           {/* Settings Tab */}
