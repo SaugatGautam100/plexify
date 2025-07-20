@@ -26,7 +26,7 @@ export default function Header() {
   const [cartItemCount, setCartItemCount] = useState(0);
   const [wishlistItemCount, setWishlistItemCount] = useState(0);
   const [countsLoading, setCountsLoading] = useState(true);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef(null);
   const router = useRouter();
   const { user, loading, logout } = useFirebaseAuth();
 
@@ -53,10 +53,10 @@ export default function Header() {
       let cartCount = 0;
       if (snapshot.exists()) {
         const cartData = snapshot.val();
-        cartCount = Object.values(cartData).reduce((sum: number, item: any) => sum + (item.productQuantity || 0), 0);
+        cartCount = Object.values(cartData).reduce((sum, item) => sum + (item.productQuantity || 0), 0);
       }
       setCartItemCount(cartCount);
-      setCountsLoading(false); // Set loading false after first update
+      setCountsLoading(false);
     }, (error) => {
       console.error('Error listening to cart updates:', error);
       setCartItemCount(0);
@@ -80,7 +80,7 @@ export default function Header() {
     };
   }, [user, loading]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
@@ -132,7 +132,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             {/* Wishlist */}
             {user ? (
               <Link href="/wishlist" className="relative">
@@ -221,13 +221,6 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/seller/login" className="flex items-center gap-2">
-                      <Store className="w-4 h-4" />
-                      Become a Seller
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="flex items-center gap-2 text-red-600 focus:text-red-600"
@@ -271,7 +264,7 @@ export default function Header() {
           <Link href="/products" className="text-sm font-medium hover:text-blue-600 transition-colors">
             All Products
           </Link>
-          {categories.slice(0, 6).map((category) => (
+          {categories.slice(0, 7).map((category) => (
             <Link
               key={category.id}
               href={`/category/${category.slug}`}
@@ -296,18 +289,11 @@ function MobileMenu({
   wishlistItemCount,
   onLogout,
   onClose
-}: {
-  user: any;
-  loading: boolean;
-  cartItemCount: number;
-  wishlistItemCount: number;
-  onLogout: () => void;
-  onClose: () => void;
 }) {
   const router = useRouter();
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
-  const handleMobileSearch = (e: React.FormEvent) => {
+  const handleMobileSearch = (e) => {
     e.preventDefault();
     if (mobileSearchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(mobileSearchQuery.trim())}`);
@@ -316,7 +302,7 @@ function MobileMenu({
     }
   };
 
-  const handleNavigation = (path: string) => {
+  const handleNavigation = (path) => {
     router.push(path);
     onClose();
   };
@@ -367,7 +353,6 @@ function MobileMenu({
                   <div className="text-sm text-gray-500">{user.email || user.phoneNumber}</div>
                 </div>
               </div>
-              
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"

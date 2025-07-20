@@ -1,125 +1,203 @@
+
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Filter, SortAsc } from 'lucide-react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import ProductGrid from '@/components/product/product-grid';
 import { categories } from '@/lib/mock-data';
-import { Product } from '@/types';
+import { getDatabase, ref, get } from 'firebase/database';
+import app from '../../../app/firebaseConfig';
+import Link from 'next/link';
+import Image from 'next/image';
 
+/**
+ * CategoryPage component displays products for a specific category identified by the slug.
+ * Includes search, price range, and sorting filters, with a responsive layout.
+ * Integrates with Firebase for product data, handles URL search parameters, and matches product design from products.tsx.
+ */
 export default function CategoryPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const categorySlug = params.slug as string;
-  
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('featured');
   const [showFilters, setShowFilters] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [imageIndices, setImageIndices] = useState({});
+  const minInputRef = useRef(null);
+  const maxInputRef = useRef(null);
 
-  // Find the category
-  const category = categories.find(cat => cat.slug === categorySlug);
+  // Find the category from mock data
+  const category = categories.find((cat) => cat.slug === categorySlug);
 
-  // Get products for this category
+  /**
+   * Fetches products for the category from Firebase Realtime Database.
+   */
   const fetchProducts = useCallback(async () => {
     if (!category) return;
-    
+
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/products?category=${category.name}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
+      setMessage('');
+      const db = getDatabase(app);
+      const dbRef = ref(db, 'Admins/AllProduct');
+      const snapshot = await get(dbRef);
+
+      if (snapshot.exists()) {
+        const allProducts = snapshot.val();
+        const categoryProducts = Object.keys(allProducts)
+          .map((key) => ({
+            productId: key,
+            ...allProducts[key],
+          }))
+          .filter((product) => product.productCategory === category.name);
+        setProducts(categoryProducts);
+        setFilteredProducts(categoryProducts);
+        setImageIndices(
+          categoryProducts.reduce((acc, item) => ({
+            ...acc,
+            [item.productId]: 0,
+          }), {})
+        );
+      } else {
+        setProducts([]);
+        setFilteredProducts([]);
+        setMessage('No products found for this category.');
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setMessage('Failed to load products. Please check your network or try again later.');
+      setProducts([]);
+      setFilteredProducts([]);
+      setImageIndices({});
     } finally {
       setIsLoading(false);
     }
   }, [category]);
 
+  /**
+   * Initializes search query from URL parameter.
+   */
+  useEffect(() => {
+    const query = searchParams.get('search') || '';
+    setSearchQuery(decodeURIComponent(query));
+  }, [searchParams]);
+
+  /**
+   * Fetches products on mount or when category changes.
+   */
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const categoryProducts = products;
-  // Get unique brands for this category
-  const brands = useMemo(() => {
-    const uniqueBrands = [...new Set(categoryProducts.map(p => p.brand))];
-    return uniqueBrands.sort();
-  }, [categoryProducts]);
+  /**
+   * Automatic carousel cycling for product images.
+   */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setImageIndices((prev) => {
+        const newIndices = { ...prev };
+        products.forEach((item) => {
+          const imageCount = item.productImageUris?.length || 1;
+          if (imageCount > 1) {
+            newIndices[item.productId] = ((prev[item.productId] || 0) + 1) % imageCount;
+          }
+        });
+        return newIndices;
+      });
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [products]);
 
-  // Filter and sort products
-  const filteredProducts = useMemo(() => {
-    let filtered = categoryProducts.filter(product => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        if (!product.name.toLowerCase().includes(query) &&
-            !product.description.toLowerCase().includes(query) &&
-            !product.brand.toLowerCase().includes(query)) {
-          return false;
-        }
-      }
+  /**
+   * Applies filters and sorting to the products.
+   */
+  useEffect(() => {
+    let result = [...products];
 
-      // Brand filter
-      if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
-        return false;
-      }
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.productTitle?.toLowerCase().includes(query) ||
+          item.productCategory?.toLowerCase().includes(query)
+      );
+    }
 
-      // Price filter
-      if (product.price < priceRange[0] || product.price > priceRange[1]) {
-        return false;
-      }
+    // Price range filter
+    if (priceRange.min !== '' || priceRange.max !== '') {
+      const min = priceRange.min !== '' ? parseFloat(priceRange.min) : 0;
+      const max = priceRange.max !== '' ? parseFloat(priceRange.max) : Infinity;
+      result = result.filter((item) => {
+        const price = item.productPrice || 0;
+        return price >= min && price <= max;
+      });
+    }
 
-      return true;
-    });
-
-    // Sort products
+    // Sorting
     switch (sortBy) {
       case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
+        result.sort((a, b) => (a.productPrice || 0) - (b.productPrice || 0));
         break;
       case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
+        result.sort((a, b) => (b.productPrice || 0) - (a.productPrice || 0));
         break;
       case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
+        result.sort((a, b) => (b.productRating || 0) - (a.productRating || 0));
         break;
       case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        result.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
         break;
       default:
-        // Featured - no sorting needed
         break;
     }
 
-    return filtered;
-  }, [categoryProducts, searchQuery, selectedBrands, priceRange, sortBy]);
+    setFilteredProducts(result);
+  }, [products, searchQuery, priceRange, sortBy]);
 
-  const handleBrandToggle = (brand: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(brand)
-        ? prev.filter(b => b !== brand)
-        : [...prev, brand]
-    );
+  /**
+   * Handles price range input changes, allowing empty strings and partial inputs.
+   */
+  const handlePriceChange = (field: 'min' | 'max', value: string, inputRef: React.RefObject<HTMLInputElement>) => {
+    if (value === '' || !isNaN(parseFloat(value)) || value === '.') {
+      setPriceRange((prev) => ({ ...prev, [field]: value }));
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
+  /**
+   * Clears all filters, preserving URL search query.
+   */
+  const clearFilters = () => {
+    setPriceRange({ min: '', max: '' });
+    setSortBy('featured');
+    if (!searchParams.get('search')) {
+      setSearchQuery('');
+    }
+    setFilteredProducts(products);
   };
 
   // If category not found
   if (!category) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className="container mx-auto px-4 py-16 text-center font-inter">
         <h1 className="text-2xl font-bold mb-4">Category not found</h1>
         <p className="text-gray-600 mb-8">The category you're looking for doesn't exist.</p>
-        <Button onClick={() => window.history.back()}>
+        <Button onClick={() => window.history.back()} className="rounded-lg bg-blue-600 hover:bg-blue-700">
           Go Back
         </Button>
       </div>
@@ -130,51 +208,40 @@ export default function CategoryPage() {
     <div className="space-y-6">
       {/* Search */}
       <div>
-        <h3 className="font-semibold mb-3">Search</h3>
+        <h3 className="font-semibold mb-3 text-gray-700">Search</h3>
         <Input
           placeholder="Search products..."
+          type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
-      {/* Brand Filter */}
-      {brands.length > 0 && (
-        <div>
-          <h3 className="font-semibold mb-3">Brand</h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {brands.map(brand => (
-              <div key={brand} className="flex items-center space-x-2">
-                <Checkbox
-                  id={brand}
-                  checked={selectedBrands.includes(brand)}
-                  onCheckedChange={() => handleBrandToggle(brand)}
-                />
-                <label htmlFor={brand} className="text-sm">
-                  {brand}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Price Range */}
       <div>
-        <h3 className="font-semibold mb-3">Price Range</h3>
+        <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
         <div className="flex items-center space-x-2">
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*\.?[0-9]*"
             placeholder="Min"
-            value={priceRange[0]}
-            onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+            value={priceRange.min}
+            onChange={(e) => handlePriceChange('min', e.target.value, minInputRef)}
+            ref={minInputRef}
+            className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           />
-          <span>-</span>
+          <span className="text-gray-500">-</span>
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*\.?[0-9]*"
             placeholder="Max"
-            value={priceRange[1]}
-            onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+            value={priceRange.max}
+            onChange={(e) => handlePriceChange('max', e.target.value, maxInputRef)}
+            ref={maxInputRef}
+            className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
@@ -182,12 +249,8 @@ export default function CategoryPage() {
       {/* Clear Filters */}
       <Button
         variant="outline"
-        onClick={() => {
-          setSearchQuery('');
-          setSelectedBrands([]);
-          setPriceRange([0, 5000]);
-        }}
-        className="w-full"
+        onClick={clearFilters}
+        className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
       >
         Clear Filters
       </Button>
@@ -195,32 +258,44 @@ export default function CategoryPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 font-inter">
       {/* Category Header */}
       <div className="mb-8">
         <div className="aspect-[3/1] relative bg-gray-100 rounded-lg overflow-hidden mb-6">
           <img
-            src={category.image}
+            src={category.image || 'https://placehold.co/1200x400/E0E0E0/808080?text=Category+Image'}
             alt={category.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = 'https://placehold.co/1200x400/E0E0E0/808080?text=Category+Image';
+            }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
             <div className="text-center text-white">
               <h1 className="text-4xl font-bold mb-2">{category.name}</h1>
-              <p className="text-xl opacity-90">{category.description}</p>
+              <p className="text-xl opacity-90">{category.description || 'Explore our products in this category.'}</p>
             </div>
           </div>
         </div>
       </div>
 
+      {message && (
+        <div
+          className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg relative mb-6"
+          role="alert"
+        >
+          <span className="block sm:inline">{message}</span>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Desktop Filters */}
         <div className="hidden lg:block w-64 flex-shrink-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filters</CardTitle>
+          <Card className="rounded-xl shadow-lg">
+            <CardHeader className="bg-gray-50 rounded-t-xl p-4">
+              <CardTitle className="text-xl font-bold text-gray-800">Filters</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <FilterContent />
             </CardContent>
           </Card>
@@ -233,7 +308,7 @@ export default function CategoryPage() {
             <div>
               <h2 className="text-2xl font-bold">{category.name} Products</h2>
               <p className="text-gray-600">
-                Showing {filteredProducts.length} of {categoryProducts.length} products
+                Showing {filteredProducts.length} of {products.length} products
               </p>
             </div>
 
@@ -241,12 +316,16 @@ export default function CategoryPage() {
               {/* Mobile Filter Toggle */}
               <Sheet open={showFilters} onOpenChange={setShowFilters}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="lg:hidden">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50"
+                  >
                     <Filter className="w-4 h-4 mr-2" />
                     Filters
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
+                <SheetContent className="w-full sm:max-w-sm rounded-l-xl p-6">
                   <div className="mt-4">
                     <FilterContent />
                   </div>
@@ -255,10 +334,10 @@ export default function CategoryPage() {
 
               {/* Sort */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
+                <SelectTrigger className="w-48 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                  <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-lg shadow-lg">
                   <SelectItem value="featured">Featured</SelectItem>
                   <SelectItem value="price-low">Price: Low to High</SelectItem>
                   <SelectItem value="price-high">Price: High to Low</SelectItem>
@@ -270,15 +349,20 @@ export default function CategoryPage() {
           </div>
 
           {/* Subcategories */}
-          {category.subcategories.length > 0 && (
+          {category.subcategories?.length > 0 && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-4">Shop by Subcategory</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {category.subcategories.map((subcategory) => (
-                  <Card key={subcategory.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <Card
+                    key={subcategory.id}
+                    className="hover:shadow-md transition-shadow cursor-pointer rounded-lg"
+                  >
                     <CardContent className="p-4 text-center">
                       <h4 className="font-medium">{subcategory.name}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{subcategory.description}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {subcategory.description || 'Explore this subcategory.'}
+                      </p>
                     </CardContent>
                   </Card>
                 ))}
@@ -289,16 +373,65 @@ export default function CategoryPage() {
           {/* Products Grid */}
           {isLoading ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">Loading products...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-500 text-lg">Loading products...</p>
             </div>
           ) : (
-            <ProductGrid products={filteredProducts} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredProducts.map((item) => (
+                <Card
+                  key={item.productId}
+                  className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
+                >
+                  <Link href={`/product/${item.productId}`} className="block">
+                    <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
+                      {item.productImageUris && item.productImageUris.length > 0 ? (
+                        <>
+                          <Image
+                            src={item.productImageUris[imageIndices[item.productId] || 0]}
+                            alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                            fill
+                            className="object-contain transition-transform duration-300 hover:scale-105"
+                            onError={(e) => {
+                              e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
+                            }}
+                          />
+                          {item.productImageUris.length > 1 && (
+                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                              {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <Image
+                          src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
+                          alt="No Image Available"
+                          fill
+                          className="object-contain transition-transform duration-300 hover:scale-105"
+                        />
+                      )}
+                    </div>
+                    <CardContent className="p-4">
+                      <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">
+                        {item.productTitle}
+                      </h2>
+                      <p className="text-sm text-gray-600">{item.productCategory}</p>
+                      <p className="text-sm text-gray-600">Available: {item.productStock}</p>
+                      <div className="mt-2 text-xl font-bold text-blue-900">
+                        Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
+                        <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                      </div>
+                    </CardContent>
+                  </Link>
+                </Card>
+              ))}
+            </div>
           )}
 
           {/* No products message */}
-          {categoryProducts.length === 0 && (
+          {!isLoading && products.length === 0 && (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2">No products available</h3>
+              <h3 className="text-xl font-semibold mb-2 text-gray-700">No products available</h3>
               <p className="text-gray-600">We're working on adding products to this category.</p>
             </div>
           )}

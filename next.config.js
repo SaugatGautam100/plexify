@@ -11,6 +11,12 @@ const nextConfig = {
         port: '',
         pathname: '/v0/b/**', // This wildcard path is crucial for Firebase Storage URLs
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**', // Allows any path on placehold.co
+      },
       // If you fetch images from other domains, add them here too.
       // Example for another domain:
       // {

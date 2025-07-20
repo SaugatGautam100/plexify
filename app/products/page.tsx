@@ -3,16 +3,16 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Filter, Grid, List, SortAsc } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import app from "../firebaseConfig";
-import { getDatabase, ref, get } from "firebase/database";
+import app from '../firebaseConfig';
+import { getDatabase, ref, get } from 'firebase/database';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * ProductsPage component displays a list of products fetched from Firebase Realtime Database.
@@ -20,83 +20,158 @@ import { useEffect, useState } from 'react';
  * and handles loading and empty states. Each product card features an automatic image carousel.
  */
 export default function ProductsPage() {
-  // State to store the array of products fetched from Firebase
+  const searchParams = useSearchParams();
   const [productArray, setProductArray] = useState([]);
-  // State to manage the loading status of data fetching
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  // State to display messages to the user (e.g., error messages, no products found)
   const [message, setMessage] = useState('');
-  // State to track current image index for each product's carousel
   const [imageIndices, setImageIndices] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('featured');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
 
   /**
    * Fetches product data from Firebase Realtime Database.
-   * Sets loading state, handles success and error cases, and updates messages.
    */
   const fetchData = async () => {
     setIsLoading(true);
     setMessage('');
     try {
       const db = getDatabase(app);
-      const dbRef = ref(db, "Admins/AllProduct");
+      const dbRef = ref(db, 'Admins/AllProduct');
       const snapshot = await get(dbRef);
 
       if (snapshot.exists()) {
         const myData = snapshot.val();
-        const temporaryArray = Object.keys(myData).map(myFireId => {
-          return {
-            ...myData[myFireId],
-            productId: myFireId
-          };
-        });
+        const temporaryArray = Object.keys(myData).map((myFireId) => ({
+          ...myData[myFireId],
+          productId: myFireId
+        }));
         setProductArray(temporaryArray);
-        // Initialize image indices for each product
+        setFilteredProducts(temporaryArray);
         setImageIndices(temporaryArray.reduce((acc, item) => ({
           ...acc,
           [item.productId]: 0
         }), {}));
         setMessage('');
       } else {
-        setMessage("No products found. Please add products to the database.");
+        setMessage('No products found. Please add products to the database.');
         setProductArray([]);
+        setFilteredProducts([]);
       }
     } catch (error) {
-      console.error("Error fetching data: ", error);
-      setMessage("Failed to load products. Please check your network or try again later.");
+      console.error('Error fetching data: ', error);
+      setMessage('Failed to load products. Please check your network or try again later.');
       setProductArray([]);
+      setFilteredProducts([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // useEffect hook to call fetchData when the component mounts
+  /**
+   * Initializes search query from URL parameter.
+   */
+  useEffect(() => {
+    const query = searchParams.get('search') || '';
+    setSearchQuery(decodeURIComponent(query));
+  }, [searchParams]);
+
+  /**
+   * Applies filters and sorting to the products.
+   */
+  useEffect(() => {
+    let result = [...productArray];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.productTitle?.toLowerCase().includes(query) ||
+          item.productCategory?.toLowerCase().includes(query)
+      );
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all') {
+      result = result.filter((item) => item.productCategory === categoryFilter);
+    }
+
+    // Price range filter
+    if (priceRange.min || priceRange.max) {
+      const min = parseFloat(priceRange.min) || 0;
+      const max = parseFloat(priceRange.max) || Infinity;
+      result = result.filter((item) => {
+        const price = item.productPrice || 0;
+        return price >= min && price <= max;
+      });
+    }
+
+    // Sorting
+    switch (sortBy) {
+      case 'price-low':
+        result.sort((a, b) => (a.productPrice || 0) - (b.productPrice || 0));
+        break;
+      case 'price-high':
+        result.sort((a, b) => (b.productPrice || 0) - (a.productPrice || 0));
+        break;
+      case 'rating':
+        result.sort((a, b) => (b.productRating || 0) - (a.productRating || 0));
+        break;
+      case 'newest':
+        result.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+        break;
+      default:
+        break;
+    }
+
+    setFilteredProducts(result);
+  }, [productArray, searchQuery, categoryFilter, sortBy, priceRange]);
+
+  /**
+   * Clears all filters and resets to default state, preserving URL search query.
+   */
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setSortBy('featured');
+    setPriceRange({ min: '', max: '' });
+    // Only clear searchQuery if no URL search parameter
+    if (!searchParams.get('search')) {
+      setSearchQuery('');
+    }
+    setFilteredProducts(productArray);
+  };
+
+  // Fetch products on mount
   useEffect(() => {
     fetchData();
   }, []);
 
-  // useEffect for automatic carousel cycling
+  // Automatic carousel cycling
   useEffect(() => {
     const interval = setInterval(() => {
-      setImageIndices(prev => {
+      setImageIndices((prev) => {
         const newIndices = { ...prev };
-        productArray.forEach(item => {
+        productArray.forEach((item) => {
           const imageCount = item.productImageUris?.length || 1;
           if (imageCount > 1) {
-            newIndices[item.productId] = (prev[item.productId] || 0) + 1 >= imageCount ? 0 : (prev[item.productId] || 0) + 1;
+            newIndices[item.productId] = ((prev[item.productId] || 0) + 1) % imageCount;
           }
         });
         return newIndices;
       });
-    }, 1500); // Change image every 1.5 seconds
-
-    // Cleanup interval on component unmount
+    }, 1500);
     return () => clearInterval(interval);
   }, [productArray]);
+
+  const uniqueCategories = ['all', ...new Set(productArray.map((item) => item.productCategory))];
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Desktop Filters Section (hidden on small screens) */}
+        {/* Desktop Filters Section */}
         <div className="hidden lg:block w-64 flex-shrink-0">
           <Card className="rounded-xl shadow-lg">
             <CardHeader className="bg-gray-50 rounded-t-xl p-4">
@@ -110,6 +185,8 @@ export default function ProductsPage() {
                   <Input
                     placeholder="Search products..."
                     type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -117,42 +194,18 @@ export default function ProductsPage() {
                 {/* Category Filter */}
                 <div>
                   <h3 className="font-semibold mb-3 text-gray-700">Category</h3>
-                  <Select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                     <SelectTrigger className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg shadow-lg">
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="electronics">Electronics</SelectItem>
-                      <SelectItem value="clothing">Clothing</SelectItem>
-                      <SelectItem value="books">Books</SelectItem>
+                      {uniqueCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category === 'all' ? 'All Categories' : category}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                {/* Brand Filter */}
-                <div>
-                  <h3 className="font-semibold mb-3 text-gray-700">Brand</h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="brand-a" className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="brand-a" className="text-sm text-gray-700 cursor-pointer">
-                        Brand A
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="brand-b" className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="brand-b" className="text-sm text-gray-700 cursor-pointer">
-                        Brand B
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="brand-c" className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="brand-c" className="text-sm text-gray-700 cursor-pointer">
-                        Brand C
-                      </label>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Price Range Input */}
@@ -162,21 +215,27 @@ export default function ProductsPage() {
                     <Input
                       type="number"
                       placeholder="Min"
-                      defaultValue={0}
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
                       className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <span className="text-gray-500">-</span>
                     <Input
                       type="number"
                       placeholder="Max"
-                      defaultValue={5000}
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
                       className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 </div>
 
                 {/* Clear Filters Button */}
-                <Button variant="outline" className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200">
+                <Button
+                  variant="outline"
+                  className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200"
+                  onClick={clearFilters}
+                >
                   Clear Filters
                 </Button>
               </div>
@@ -186,19 +245,19 @@ export default function ProductsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          {/* Header with Product Count and Sort/View Options */}
+          {/* Header with Product Count and Sort */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <h1 className="text-3xl font-extrabold text-gray-900">
                 All Products
               </h1>
               <p className="text-gray-600 mt-1">
-                Showing {productArray.length} products
+                Showing {filteredProducts.length} products
               </p>
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Mobile Filter Toggle Button (visible on small screens) */}
+              {/* Mobile Filter Toggle */}
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50 transition-colors duration-200">
@@ -214,39 +273,25 @@ export default function ProductsPage() {
                         <Input
                           placeholder="Search products..."
                           type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
                           className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                       <div>
                         <h3 className="font-semibold mb-3 text-gray-700">Category</h3>
-                        <Select>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                           <SelectTrigger className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                             <SelectValue placeholder="All Categories" />
                           </SelectTrigger>
                           <SelectContent className="rounded-lg shadow-lg">
-                            <SelectItem value="all">All Categories</SelectItem>
-                            <SelectItem value="electronics">Electronics</SelectItem>
-                            <SelectItem value="clothing">Clothing</SelectItem>
-                            <SelectItem value="books">Books</SelectItem>
+                            {uniqueCategories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category === 'all' ? 'All Categories' : category}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-3 text-gray-700">Brand</h3>
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="mobile-brand-a" className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <label htmlFor="mobile-brand-a" className="text-sm text-gray-700 cursor-pointer">
-                              Brand A
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="mobile-brand-b" className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <label htmlFor="mobile-brand-b" className="text-sm text-gray-700 cursor-pointer">
-                              Brand B
-                            </label>
-                          </div>
-                        </div>
                       </div>
                       <div>
                         <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
@@ -254,19 +299,25 @@ export default function ProductsPage() {
                           <Input
                             type="number"
                             placeholder="Min"
-                            defaultValue={0}
+                            value={priceRange.min}
+                            onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
                             className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                           />
                           <span className="text-gray-500">-</span>
                           <Input
                             type="number"
                             placeholder="Max"
-                            defaultValue={5000}
+                            value={priceRange.max}
+                            onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
                             className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
                       </div>
-                      <Button variant="outline" className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200">
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200"
+                        onClick={clearFilters}
+                      >
                         Clear Filters
                       </Button>
                     </div>
@@ -275,7 +326,7 @@ export default function ProductsPage() {
               </Sheet>
 
               {/* Sort By Dropdown */}
-              <Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-48 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
@@ -290,7 +341,7 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Conditional Rendering based on Loading State */}
+          {/* Conditional Rendering */}
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -304,23 +355,21 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {productArray.length > 0 ? (
+              {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {productArray.map((item) => (
+                  {filteredProducts.map((item) => (
                     <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
                       <Link href={`/product/${item.productId}`} className="block">
                         <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
-                          {/* Automatic Image Carousel */}
                           {item.productImageUris && item.productImageUris.length > 0 ? (
                             <>
                               <Image
                                 src={item.productImageUris[imageIndices[item.productId] || 0]}
-                                alt={`${item.productTitle || "Product Image"} ${imageIndices[item.productId] + 1}`}
-                                layout="fill"
-                                objectFit="contain"
-                                className="transition-transform duration-300 hover:scale-105"
+                                alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                                fill
+                                className="object-contain transition-transform duration-300 hover:scale-105"
                                 onError={(e) => {
-                                  e.currentTarget.src = "https://placehold.co/600x400/E0E0E0/808080?text=Image+Error";
+                                  e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
                                 }}
                               />
                               {item.productImageUris.length > 1 && (
@@ -333,9 +382,8 @@ export default function ProductsPage() {
                             <Image
                               src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
                               alt="No Image Available"
-                              layout="fill"
-                              objectFit="contain"
-                              className="transition-transform duration-300 hover:scale-105"
+                              fill
+                              className="object-contain transition-transform duration-300 hover:scale-105"
                             />
                           )}
                         </div>
@@ -344,7 +392,7 @@ export default function ProductsPage() {
                           <p className="text-sm text-gray-600">{item.productCategory}</p>
                           <p className="text-sm text-gray-600">Available: {item.productStock}</p>
                           <div className="mt-2 text-xl font-bold text-blue-900">
-                            Rs.{item.productPrice}{' '}
+                            Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
                             <span className="text-sm text-gray-500">per {item.productUnit}</span>
                           </div>
                         </CardContent>
@@ -359,7 +407,7 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {productArray.length > 0 && (
+              {filteredProducts.length > 0 && (
                 <div className="text-center mt-8">
                   <Button size="lg" className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200">
                     Load More Products
@@ -367,31 +415,15 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {productArray.length > 0 && (
+              {filteredProducts.length > 0 && (
                 <div className="text-center mt-4 text-sm text-gray-600">
-                  Displaying {productArray.length} products
+                  Displaying {filteredProducts.length} products
                 </div>
               )}
             </>
           )}
         </div>
       </div>
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #888;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #555;
-        }
-      `}</style>
     </div>
   );
 }
