@@ -1,12 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth } from 'firebase/auth';
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getMessaging } from 'firebase/messaging'; // Import getMessaging
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDm0sA-pbN2gPb3QQKInlEfsOisAGt14H4",
   authDomain: "plexify-6469a.firebaseapp.com",
@@ -21,5 +18,17 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Initialize Firebase Messaging
+let messaging;
+if (typeof window !== 'undefined') { // Only initialize messaging in the browser
+  try {
+    messaging = getMessaging(app);
+  } catch (e) {
+    console.error("Error initializing Firebase Messaging:", e);
+    // Handle error, e.g., by not exporting messaging or setting it to null
+  }
+}
+export { messaging }; // Export the messaging instance
 
 export default app;

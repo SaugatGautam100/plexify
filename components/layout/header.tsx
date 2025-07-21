@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, User, Heart, Menu, X, Store, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, User, Heart, Menu, X, Store, LogOut, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,20 +17,22 @@ import Image from 'next/image';
 
 /**
  * Header component provides navigation, search, cart, wishlist, and user authentication UI.
- * Uses real-time listeners for cart and wishlist item counts from Firebase.
+ * Uses real-time listeners for cart, wishlist, and notification item counts from Firebase.
  */
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [wishlistItemCount, setWishlistItemCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [countsLoading, setCountsLoading] = useState(true);
   const searchInputRef = useRef(null);
   const router = useRouter();
   const { user, userData, loading, logout } = useFirebaseAuth();
 
   /**
-   * Sets up real-time listeners for cart and wishlist item counts.
+   * Sets up real-time listeners for cart, wishlist, and notification item counts.
    */
   useEffect(() => {
     if (loading) return;
@@ -38,6 +40,8 @@ export default function Header() {
     if (!user) {
       setCartItemCount(0);
       setWishlistItemCount(0);
+      setNotificationCount(0);
+      setRecentNotifications([]);
       setCountsLoading(false);
       return;
     }
@@ -52,7 +56,7 @@ export default function Header() {
       let cartCount = 0;
       if (snapshot.exists()) {
         const cartData = snapshot.val();
-        cartCount = Object.values(cartData).reduce((sum, item) => sum + (item.productQuantity || 0), 0);
+        cartCount = Object.values(cartData).reduce((sum, item: any) => sum + (item.productQuantity || 0), 0);
       }
       setCartItemCount(cartCount);
       setCountsLoading(false);
@@ -72,14 +76,38 @@ export default function Header() {
       setWishlistItemCount(0);
     });
 
-    // Clean up listeners on unmount or user change
+    // Real-time listener for notifications
+    const notificationsRef = ref(db, `AllUsers/Users/${user.uid}/notifications`);
+    const unsubscribeNotifications = onValue(notificationsRef, (snapshot) => {
+      let unreadCount = 0;
+      const notifications: any[] = [];
+      if (snapshot.exists()) {
+        const notificationsData = snapshot.val();
+        Object.keys(notificationsData).forEach(key => {
+          const notification = { id: key, ...notificationsData[key] };
+          notifications.push(notification);
+          if (!notification.read) {
+            unreadCount++;
+          }
+        });
+        notifications.sort((a, b) => b.timestamp - a.timestamp);
+      }
+      setNotificationCount(unreadCount);
+      setRecentNotifications(notifications.slice(0, 5));
+    }, (error) => {
+      console.error('Error listening to notifications:', error);
+      setNotificationCount(0);
+      setRecentNotifications([]);
+    });
+
     return () => {
-      off(cartRef);
-      off(wishlistRef);
+      off(cartRef, 'value', unsubscribeCart);
+      off(wishlistRef, 'value', unsubscribeWishlist);
+      off(notificationsRef, 'value', unsubscribeNotifications);
     };
   }, [user, loading]);
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
@@ -96,7 +124,6 @@ export default function Header() {
     }
   };
 
-  // Get user's display name from userData or fallback to phone/email
   const getUserDisplayName = () => {
     if (userData?.displayName) {
       return userData.displayName;
@@ -148,6 +175,59 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <div className="flex items-center space-x-4">
+            {/* Notifications */}
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  {/* Changed parent to relative for badge positioning */}
+                  <Button variant="ghost" size="icon" disabled={countsLoading} className="relative">
+                    <Bell className="w-5 h-5" />
+                    {notificationCount > 0 && !countsLoading && (
+                      <Badge
+                        variant="destructive"
+                        // Adjusted positioning for better alignment
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                      >
+                        {notificationCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="px-4 py-2 text-sm font-bold border-b">Notifications</div>
+                  {recentNotifications.length > 0 ? (
+                    recentNotifications.map(notification => (
+                      <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-2">
+                        <span className={`text-sm ${notification.read ? 'text-gray-500' : 'font-semibold text-gray-900'}`}>
+                          {notification.title}
+                        </span>
+                        <span className={`text-xs ${notification.read ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {notification.message}
+                        </span>
+                        <span className="text-xs text-gray-400 mt-1">
+                          {new Date(notification.timestamp).toLocaleString()}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem className="text-gray-500 text-sm py-4">
+                      No new notifications.
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile/notifications" className="w-full text-center py-2 text-blue-600 hover:text-blue-700">
+                      View All Notifications
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={() => router.push('/login')}>
+                <Bell className="w-5 h-5" />
+              </Button>
+            )}
+
             {/* Wishlist */}
             {user ? (
               <Link href="/wishlist" className="relative">
@@ -272,6 +352,7 @@ export default function Header() {
                   loading={loading}
                   cartItemCount={cartItemCount}
                   wishlistItemCount={wishlistItemCount}
+                  notificationCount={notificationCount}
                   onLogout={handleLogout}
                   onClose={() => setIsMobileMenuOpen(false)}
                   getUserDisplayName={getUserDisplayName}
@@ -311,20 +392,27 @@ function MobileMenu({
   loading,
   cartItemCount,
   wishlistItemCount,
+  notificationCount,
   onLogout,
-  onClose
+  onClose,
+  getUserDisplayName,
+  getUserContactInfo
 }: {
   user: any;
+  userData: any;
   loading: boolean;
   cartItemCount: number;
   wishlistItemCount: number;
+  notificationCount: number;
   onLogout: () => void;
   onClose: () => void;
+  getUserDisplayName: () => string;
+  getUserContactInfo: () => string;
 }) {
   const router = useRouter();
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
-  const handleMobileSearch = (e) => {
+  const handleMobileSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (mobileSearchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(mobileSearchQuery.trim())}`);
@@ -333,7 +421,7 @@ function MobileMenu({
     }
   };
 
-  const handleNavigation = (path) => {
+  const handleNavigation = (path: string) => {
     router.push(path);
     onClose();
   };
@@ -373,31 +461,67 @@ function MobileMenu({
                   <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="font-medium">Saugat Gautam</div>
-                  <div className="text-sm text-gray-500">92838323883</div>
+                  <div className="font-medium">{getUserDisplayName()}</div>
+                  <div className="text-sm text-gray-500">{getUserContactInfo()}</div>
                   {userData && (
                     <div className="text-xs text-gray-400">Type: {userData.userType}</div>
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                {/* Notifications button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleNavigation('/notifications')}
+                  className="flex items-center gap-2 relative"
+                >
+                  <Bell className="w-4 h-4" />
+                  <span className="hidden sm:inline">Notifs</span>
+                  {notificationCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                    >
+                      {notificationCount}
+                    </Badge>
+                  )}
+                </Button>
+                {/* Cart button */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleNavigation('/cart')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 relative"
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  Cart ({cartItemCount})
+                  <span className="hidden sm:inline">Cart</span>
+                  {cartItemCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                    >
+                      {cartItemCount}
+                    </Badge>
+                  )}
                 </Button>
+                {/* Wishlist button */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleNavigation('/wishlist')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 relative"
                 >
                   <Heart className="w-4 h-4" />
-                  Wishlist ({wishlistItemCount})
+                  <span className="hidden sm:inline">Wishlist</span>
+                  {wishlistItemCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                    >
+                      {wishlistItemCount}
+                    </Badge>
+                  )}
                 </Button>
               </div>
             </div>

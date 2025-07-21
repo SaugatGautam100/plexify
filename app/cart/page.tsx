@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import CartItem from '@/components/cart/cart-item';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { getDatabase, ref, get, remove, push, set } from 'firebase/database'; // Added push and set
-import { getAuth } from 'firebase/auth'; // Added getAuth
+import { getDatabase, ref, get, remove, push, set } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 import app from '../firebaseConfig';
 
 /**
@@ -182,29 +182,42 @@ export default function CartPage() {
 
     try {
       const db = getDatabase(app);
-      const auth = getAuth(app); // Get auth instance
-      const currentUser = auth.currentUser; // Get current user
+      const auth = getAuth(app);
+      const currentUser = auth.currentUser;
 
       if (!currentUser) {
         setMessage("Authentication error. Please log in again.");
         return;
       }
 
+      // Fetch user's phone number and address from their profile
+      const userProfileRef = ref(db, `AllUsers/Users/${currentUser.uid}`);
+      const userProfileSnapshot = await get(userProfileRef);
+      let userPhoneNumber = '';
+      let userAddress = '';
+
+      if (userProfileSnapshot.exists()) {
+        const profileData = userProfileSnapshot.val();
+        userPhoneNumber = profileData.phoneNumber || ''; // Assuming 'phoneNumber' field
+        userAddress = profileData.address || ''; // Assuming 'address' field
+      }
+
       const orderRefUser = ref(db, `AllUsers/Users/${currentUser.uid}/UserOrders`);
       const orderRefAdmin = ref(db, `Admins/AllUserOrders`);
 
-      // Generate a unique key for the new order
-      const newOrderRef = push(orderRefUser); // Use push to get a unique ID
+      const newOrderRef = push(orderRefUser);
       const orderId = newOrderRef.key;
 
       const orderData = {
         orderId: orderId,
         userId: currentUser.uid,
-        userEmail: currentUser.email || 'N/A', // Include user email
-        orderNumber: `ORD-${Date.now()}`, // Simple order number
+        userEmail: currentUser.email || 'N/A',
+        userPhoneNumber: userPhoneNumber, // Include fetched phone number
+        userAddress: userAddress,       // Include fetched address
+        orderNumber: `ORD-${Date.now()}`,
         createdAt: Date.now(),
         paymentMethod: 'Cash on Delivery',
-        status: 'pending', // Initial status
+        status: 'pending',
         items: items.map(item => ({
           productId: item.id,
           productTitle: item.productTitle,
@@ -223,16 +236,12 @@ export default function CartPage() {
         finalTotal: finalTotal,
       };
 
-      // Save order to user's orders
       await set(newOrderRef, orderData);
-
-      // Save order to admin's all orders
       await set(ref(db, `Admins/AllUserOrders/${orderId}`), orderData);
 
-      // Clear the user's cart after successful order placement
       await clearCart();
       setMessage("Order placed successfully! Redirecting to your orders...");
-      router.push('/profile/orders'); // Redirect to orders page
+      router.push('/profile/orders');
     } catch (error) {
       console.error("Error placing order:", error.message, error.code);
       setMessage(`Failed to place order: ${error.message}`);
