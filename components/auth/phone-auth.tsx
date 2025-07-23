@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/app/firebaseConfig';
-import { 
-  signInWithPhoneNumber, 
+import {
+  signInWithPhoneNumber,
   RecaptchaVerifier,
   ConfirmationResult
 } from 'firebase/auth';
@@ -23,11 +23,12 @@ export default function PhoneAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const [username, setUsername] = useState('');
+  const [useraddress, setUseraddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    // Initialize reCAPTCHA when component mounts
     const initializeRecaptcha = () => {
       try {
         if (!recaptchaVerifier && typeof window !== 'undefined') {
@@ -54,7 +55,6 @@ export default function PhoneAuth() {
 
     initializeRecaptcha();
 
-    // Cleanup function
     return () => {
       if (recaptchaVerifier) {
         recaptchaVerifier.clear();
@@ -66,36 +66,27 @@ export default function PhoneAuth() {
     try {
       const db = getDatabase(app);
       const userRef = ref(db, `AllUsers/Users/${user.uid}`);
-      
-      // Check if user already exists
+
       const snapshot = await get(userRef);
-      
+
       if (!snapshot.exists()) {
-        // Create new user record
         const userData = {
           uid: user.uid,
           phoneNumber: user.phoneNumber,
+          username,
+          useraddress,
           address: '',
           UserCartItems: {},
           UserWishlistItems: {}
         };
-        
+
         await set(userRef, userData);
-        console.log('New user saved to database:', userData);
-        
+
         toast({
           title: 'Welcome!',
           description: 'Your account has been created successfully.',
         });
       } else {
-        // Update existing user's last login
-        const existingData = snapshot.val();
-        if (existingData.mobileNumber !== user.phoneNumber) {
-          await set(ref(db, `AllUsers/Users/${user.uid}/mobileNumber`), user.phoneNumber);
-        }
-        
-        console.log('Existing user login updated:', existingData);
-        
         toast({
           title: 'Welcome back!',
           description: 'You have been logged in successfully.',
@@ -113,7 +104,7 @@ export default function PhoneAuth() {
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!phoneNumber.trim()) {
       toast({
         title: 'Error',
@@ -123,13 +114,11 @@ export default function PhoneAuth() {
       return;
     }
 
-    // Format phone number
     let formattedPhone = phoneNumber.trim();
     if (!formattedPhone.startsWith('+')) {
       formattedPhone = '+977' + formattedPhone.replace(/^0+/, '');
     }
 
-    // Validate phone number format
     const phoneRegex = /^\+[1-9]\d{1,14}$/;
     if (!phoneRegex.test(formattedPhone)) {
       toast({
@@ -143,9 +132,6 @@ export default function PhoneAuth() {
     setIsLoading(true);
 
     try {
-      console.log('Sending OTP to:', formattedPhone);
-      
-      // Ensure reCAPTCHA is initialized
       if (!recaptchaVerifier) {
         throw new Error('reCAPTCHA not initialized');
       }
@@ -153,16 +139,16 @@ export default function PhoneAuth() {
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
       setConfirmationResult(confirmation);
       setStep('otp');
-      
+
       toast({
         title: 'OTP Sent',
         description: 'Please check your phone for the verification code.',
       });
     } catch (error: any) {
       console.error('Error sending OTP:', error);
-      
+
       let errorMessage = 'Failed to send OTP. Please try again.';
-      
+
       switch (error.code) {
         case 'auth/invalid-phone-number':
           errorMessage = 'Invalid phone number format.';
@@ -174,26 +160,24 @@ export default function PhoneAuth() {
           errorMessage = 'SMS quota exceeded. Please try again later.';
           break;
         case 'auth/invalid-app-credential':
-          errorMessage = 'Firebase configuration error. Please check your setup.';
+          errorMessage = 'Firebase configuration error.';
           break;
         case 'auth/captcha-check-failed':
-          errorMessage = 'reCAPTCHA verification failed. Please try again.';
+          errorMessage = 'reCAPTCHA failed. Try again.';
           break;
         default:
-          errorMessage = error.message || 'Failed to send OTP. Please try again.';
+          errorMessage = error.message || errorMessage;
       }
-      
+
       toast({
         title: 'Error',
         description: errorMessage,
         variant: 'destructive',
       });
 
-      // Reset reCAPTCHA on error
       if (recaptchaVerifier) {
         recaptchaVerifier.clear();
         setRecaptchaVerifier(null);
-        // Reinitialize reCAPTCHA
         setTimeout(() => {
           const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
             size: 'invisible',
@@ -211,7 +195,7 @@ export default function PhoneAuth() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!otp.trim() || otp.length !== 6) {
       toast({
         title: 'Error',
@@ -235,33 +219,29 @@ export default function PhoneAuth() {
     try {
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
-      
-      console.log('User signed in:', user);
-      
-      // Save user data to Firebase Realtime Database
+
       await saveUserToDatabase(user);
-      
-      // Redirect to home page or previous page
+
       const returnUrl = new URLSearchParams(window.location.search).get('returnUrl') || '/';
       router.push(returnUrl);
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
       let errorMessage = 'Invalid OTP. Please try again.';
-      
+
       switch (error.code) {
         case 'auth/invalid-verification-code':
           errorMessage = 'Invalid verification code.';
           break;
         case 'auth/code-expired':
-          errorMessage = 'Verification code has expired. Please request a new one.';
+          errorMessage = 'Verification code expired.';
           break;
         case 'auth/session-expired':
-          errorMessage = 'Session expired. Please request a new code.';
+          errorMessage = 'Session expired.';
           break;
         default:
-          errorMessage = error.message || 'Invalid OTP. Please try again.';
+          errorMessage = error.message || errorMessage;
       }
-      
+
       toast({
         title: 'Error',
         description: errorMessage,
@@ -276,13 +256,12 @@ export default function PhoneAuth() {
     setOtp('');
     setStep('phone');
     setConfirmationResult(null);
-    
-    // Clear and reinitialize reCAPTCHA
+
     if (recaptchaVerifier) {
       recaptchaVerifier.clear();
       setRecaptchaVerifier(null);
     }
-    
+
     setTimeout(() => {
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
@@ -292,7 +271,7 @@ export default function PhoneAuth() {
       });
       setRecaptchaVerifier(verifier);
     }, 1000);
-    
+
     toast({
       title: 'Ready to resend',
       description: 'Please enter your phone number again.',
@@ -308,19 +287,38 @@ export default function PhoneAuth() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>
-          {step === 'phone' ? 'Phone Authentication' : 'Verify OTP'}
-        </CardTitle>
+        <CardTitle>{step === 'phone' ? 'Phone Authentication' : 'Verify OTP'}</CardTitle>
         <CardDescription>
-          {step === 'phone' 
-            ? 'Enter your phone number to receive a verification code'
-            : 'Enter the 6-digit code sent to your phone'
-          }
+          {step === 'phone'
+            ? 'Enter your details and phone number to receive a verification code'
+            : 'Enter the 6-digit code sent to your phone'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {step === 'phone' ? (
           <form onSubmit={handleSendOTP} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="useraddress">User Address</Label>
+              <Input
+                id="useraddress"
+                type="text"
+                placeholder="Enter your user address"
+                value={useraddress}
+                onChange={(e) => setUseraddress(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               <Input
@@ -354,30 +352,22 @@ export default function PhoneAuth() {
                 required
                 disabled={isLoading}
               />
-              <p className="text-xs text-gray-500">
-                Code sent to {phoneNumber}
-              </p>
+              <p className="text-xs text-gray-500">Code sent to {phoneNumber}</p>
             </div>
-            
             <div className="flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={handleBack}
                 className="flex-1"
                 disabled={isLoading}
               >
                 Back
               </Button>
-              <Button 
-                type="submit" 
-                className="flex-1" 
-                disabled={isLoading}
-              >
+              <Button type="submit" className="flex-1" disabled={isLoading}>
                 {isLoading ? 'Verifying...' : 'Verify'}
               </Button>
             </div>
-            
             <div className="text-center">
               <Button
                 type="button"
