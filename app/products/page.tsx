@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Filter } from 'lucide-react';
@@ -15,9 +16,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 /**
- * ProductsPage component displays a list of products fetched from Firebase Realtime Database.
- * It includes a responsive layout with desktop filters and a mobile filter sheet,
- * and handles loading and empty states. Each product card features an automatic image carousel.
+ * ProductsPage component displays a paginated list of products fetched from Firebase Realtime Database.
+ * It shows 48 products per page with Next/Previous navigation, includes a responsive layout with desktop filters
+ * and a mobile filter sheet, and handles loading and empty states. Each product card features an automatic image carousel.
  */
 export default function ProductsPage() {
   const searchParams = useSearchParams();
@@ -30,6 +31,8 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('featured');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 48;
 
   /**
    * Fetches product data from Firebase Realtime Database.
@@ -71,15 +74,16 @@ export default function ProductsPage() {
   };
 
   /**
-   * Initializes search query from URL parameter.
+   * Initializes search query from URL parameter and resets to first page.
    */
   useEffect(() => {
     const query = searchParams.get('search') || '';
     setSearchQuery(decodeURIComponent(query));
+    setCurrentPage(1); // Reset to first page on search query change
   }, [searchParams]);
 
   /**
-   * Applies filters and sorting to the products.
+   * Applies filters and sorting to the products, resetting to first page on filter change.
    */
   useEffect(() => {
     let result = [...productArray];
@@ -128,6 +132,7 @@ export default function ProductsPage() {
     }
 
     setFilteredProducts(result);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [productArray, searchQuery, categoryFilter, sortBy, priceRange]);
 
   /**
@@ -141,7 +146,7 @@ export default function ProductsPage() {
     if (!searchParams.get('search')) {
       setSearchQuery('');
     }
-    setFilteredProducts(productArray);
+    setCurrentPage(1); // Reset to first page
   };
 
   // Fetch products on mount
@@ -165,6 +170,24 @@ export default function ProductsPage() {
     }, 1500);
     return () => clearInterval(interval);
   }, [productArray]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
 
   const uniqueCategories = ['all', ...new Set(productArray.map((item) => item.productCategory))];
 
@@ -251,9 +274,6 @@ export default function ProductsPage() {
               <h1 className="text-3xl font-extrabold text-gray-900">
                 All Products
               </h1>
-              <p className="text-gray-600 mt-1">
-                Showing {filteredProducts.length} products
-              </p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -356,11 +376,11 @@ export default function ProductsPage() {
               )}
 
               {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {filteredProducts.map((item) => (
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {currentProducts.map((item) => (
                     <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
                       <Link href={`/product/${item.productId}`} className="block">
-                        <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
+                        <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-white border-b border-gray-200">
                           {item.productImageUris && item.productImageUris.length > 0 ? (
                             <>
                               <Image
@@ -408,16 +428,26 @@ export default function ProductsPage() {
               )}
 
               {filteredProducts.length > 0 && (
-                <div className="text-center mt-8">
-                  <Button size="lg" className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200">
-                    Load More Products
+                <div className="flex justify-center items-center gap-4 mt-8">
+                  <Button
+                    size="lg"
+                    className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
                   </Button>
-                </div>
-              )}
-
-              {filteredProducts.length > 0 && (
-                <div className="text-center mt-4 text-sm text-gray-600">
-                  Displaying {filteredProducts.length} products
+                  <span className="text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    size="lg"
+                    className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
                 </div>
               )}
             </>

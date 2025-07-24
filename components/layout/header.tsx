@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -17,22 +18,23 @@ import Image from 'next/image';
 
 /**
  * Header component provides navigation, search, cart, wishlist, and user authentication UI.
- * Uses real-time listeners for cart, wishlist, and notification item counts from Firebase.
+ * Uses real-time listeners for cart, wishlist, and unread notification counts from Firebase.
  */
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [wishlistItemCount, setWishlistItemCount] = useState(0);
-  const [notificationCount, setNotificationCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [countsLoading, setCountsLoading] = useState(true);
+  const [imageIndices, setImageIndices] = useState<{ [key: string]: { [itemIndex: number]: number } }>({});
   const searchInputRef = useRef(null);
   const router = useRouter();
   const { user, userData, loading, logout } = useFirebaseAuth();
 
   /**
-   * Sets up real-time listeners for cart, wishlist, and notification item counts.
+   * Sets up real-time listeners for cart, wishlist, and unread notification counts.
    */
   useEffect(() => {
     if (loading) return;
@@ -40,8 +42,9 @@ export default function Header() {
     if (!user) {
       setCartItemCount(0);
       setWishlistItemCount(0);
-      setNotificationCount(0);
+      setUnreadNotificationCount(0);
       setRecentNotifications([]);
+      setImageIndices({});
       setCountsLoading(false);
       return;
     }
@@ -76,11 +79,12 @@ export default function Header() {
       setWishlistItemCount(0);
     });
 
-    // Real-time listener for notifications
-    const notificationsRef = ref(db, `AllUsers/Users/${user.uid}/notifications`);
+    // Real-time listener for unread notifications
+    const notificationsRef = ref(db, `AllUsers/Users/${user.uid}/UserNotifications`);
     const unsubscribeNotifications = onValue(notificationsRef, (snapshot) => {
       let unreadCount = 0;
       const notifications: any[] = [];
+      const newImageIndices: { [key: string]: { [itemIndex: number]: number } } = {};
       if (snapshot.exists()) {
         const notificationsData = snapshot.val();
         Object.keys(notificationsData).forEach(key => {
@@ -89,15 +93,22 @@ export default function Header() {
           if (!notification.read) {
             unreadCount++;
           }
+          const items = parseNotificationItems(notification.message);
+          newImageIndices[key] = items.reduce((acc, _, index) => ({
+            ...acc,
+            [index]: 0
+          }), {});
         });
         notifications.sort((a, b) => b.timestamp - a.timestamp);
       }
-      setNotificationCount(unreadCount);
+      setUnreadNotificationCount(unreadCount);
       setRecentNotifications(notifications.slice(0, 5));
+      setImageIndices(newImageIndices);
     }, (error) => {
       console.error('Error listening to notifications:', error);
-      setNotificationCount(0);
+      setUnreadNotificationCount(0);
       setRecentNotifications([]);
+      setImageIndices({});
     });
 
     return () => {
@@ -106,6 +117,45 @@ export default function Header() {
       off(notificationsRef, 'value', unsubscribeNotifications);
     };
   }, [user, loading]);
+
+  // Automatic carousel for item images
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setImageIndices((prev) => {
+        const newIndices = { ...prev };
+        recentNotifications.forEach((notification) => {
+          const items = parseNotificationItems(notification.message);
+          newIndices[notification.id] = newIndices[notification.id] || {};
+          items.forEach((item, itemIndex) => {
+            const imageCount = item.images?.length || 1;
+            if (imageCount > 1) {
+              newIndices[notification.id][itemIndex] = ((prev[notification.id]?.[itemIndex] || 0) + 1) % imageCount;
+            }
+          });
+        });
+        return newIndices;
+      });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [recentNotifications]);
+
+  const parseNotificationItems = (message: string) => {
+    const itemLines = message.split('\n').filter(line => line.startsWith('- '));
+    return itemLines.map(line => {
+      const match = line.match(/- Title: (.+); Price: Rs\.([\d.]+); Quantity: (\d+); Category: (.+); Unit: (.+); Type: (.+); Images: \[([^\]]*)\]/);
+      if (match) {
+        const images = match[7].split(',').map(url => url.trim()).filter(url => url);
+        return {
+          title: match[1],
+          price: parseFloat(match[2]),
+          quantity: parseInt(match[3]),
+          images: images.length > 0 ? images : ['https://placehold.co/100x100/E0E0E0/808080?text=No+Image'],
+        };
+      }
+      return null;
+    }).filter(item => item !== null);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,34 +229,53 @@ export default function Header() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  {/* Changed parent to relative for badge positioning */}
                   <Button variant="ghost" size="icon" disabled={countsLoading} className="relative">
-                    <Bell className="w-5 h-5" />
-                    {notificationCount > 0 && !countsLoading && (
+                    <Bell className="w-5 h-5 text-gray-600 hover:text-blue-600" />
+                    {unreadNotificationCount > 0 && !countsLoading && (
                       <Badge
                         variant="destructive"
-                        // Adjusted positioning for better alignment
-                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0"
                       >
-                        {notificationCount}
+                        {unreadNotificationCount}
                       </Badge>
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <div className="px-4 py-2 text-sm font-bold border-b">Notifications</div>
+                <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile/notifications" className="w-full text-center py-2 text-blue-600 hover:text-blue-700 font-semibold">
+                      View All Notifications
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-4 py-2 text-sm font-bold border-b">Recent Notifications</div>
                   {recentNotifications.length > 0 ? (
                     recentNotifications.map(notification => (
-                      <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-2">
-                        <span className={`text-sm ${notification.read ? 'text-gray-500' : 'font-semibold text-gray-900'}`}>
-                          {notification.title}
-                        </span>
-                        <span className={`text-xs ${notification.read ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {notification.message}
-                        </span>
-                        <span className="text-xs text-gray-400 mt-1">
-                          {new Date(notification.timestamp).toLocaleString()}
-                        </span>
+                      <DropdownMenuItem key={notification.id} asChild>
+                        <Link href="/profile/notifications" className="flex flex-col items-start p-2">
+                          <span className={`text-sm ${notification.read ? 'text-gray-500' : 'font-semibold text-gray-900'}`}>
+                            {notification.title}
+                          </span>
+                          {parseNotificationItems(notification.message).map((item, itemIndex) => (
+                            <div key={itemIndex} className="flex items-center gap-2 mt-1">
+                              <img
+                                src={item.images[imageIndices[notification.id]?.[itemIndex] || 0]}
+                                alt={item.title}
+                                className="w-8 h-8 object-cover rounded"
+                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image')}
+                              />
+                              <div>
+                                <span className="text-xs text-gray-600">{item.title}</span>
+                                <span className="text-xs text-gray-600 block">
+                                  Rs.{item.price.toFixed(2)} x {item.quantity}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          <span className="text-xs text-gray-400 mt-1">
+                            {new Date(notification.timestamp).toLocaleString()}
+                          </span>
+                        </Link>
                       </DropdownMenuItem>
                     ))
                   ) : (
@@ -214,17 +283,11 @@ export default function Header() {
                       No new notifications.
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile/notifications" className="w-full text-center py-2 text-blue-600 hover:text-blue-700">
-                      View All Notifications
-                    </Link>
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <Button variant="ghost" size="icon" onClick={() => router.push('/login')}>
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5 text-gray-600 hover:text-blue-600" />
               </Button>
             )}
 
@@ -290,11 +353,6 @@ export default function Header() {
                   <div className="px-2 py-1.5 text-xs text-gray-500">
                     {getUserContactInfo()}
                   </div>
-                  {userData && (
-                    <div className="px-2 py-1.5 text-xs text-gray-500">
-                      User Type: {userData.userType}
-                    </div>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center gap-2">
@@ -352,7 +410,7 @@ export default function Header() {
                   loading={loading}
                   cartItemCount={cartItemCount}
                   wishlistItemCount={wishlistItemCount}
-                  notificationCount={notificationCount}
+                  notificationCount={unreadNotificationCount}
                   onLogout={handleLogout}
                   onClose={() => setIsMobileMenuOpen(false)}
                   getUserDisplayName={getUserDisplayName}
@@ -468,20 +526,19 @@ function MobileMenu({
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {/* Notifications button */}
+              <div className="space-y-2">
+                {/* Notifications Button */}
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={() => handleNavigation('/notifications')}
-                  className="flex items-center gap-2 relative"
+                  className="w-full justify-start relative"
+                  onClick={() => handleNavigation('/profile/notifications')}
                 >
-                  <Bell className="w-4 h-4" />
-                  <span className="hidden sm:inline">Notifs</span>
+                  <Bell className="w-4 h-4 text-gray-600 hover:text-blue-600 mr-2" />
+                  Notifications
                   {notificationCount > 0 && (
                     <Badge
                       variant="destructive"
-                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                      className="absolute top-2 right-2 h-4 w-4 flex items-center justify-center text-xs p-0"
                     >
                       {notificationCount}
                     </Badge>
@@ -490,16 +547,15 @@ function MobileMenu({
                 {/* Cart button */}
                 <Button
                   variant="outline"
-                  size="sm"
+                  className="w-full justify-start relative"
                   onClick={() => handleNavigation('/cart')}
-                  className="flex items-center gap-2 relative"
                 >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cart</span>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Cart
                   {cartItemCount > 0 && (
                     <Badge
                       variant="destructive"
-                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                      className="absolute top-2 right-2 h-4 w-4 flex items-center justify-center text-xs p-0"
                     >
                       {cartItemCount}
                     </Badge>
@@ -508,16 +564,15 @@ function MobileMenu({
                 {/* Wishlist button */}
                 <Button
                   variant="outline"
-                  size="sm"
+                  className="w-full justify-start relative"
                   onClick={() => handleNavigation('/wishlist')}
-                  className="flex items-center gap-2 relative"
                 >
-                  <Heart className="w-4 h-4" />
-                  <span className="hidden sm:inline">Wishlist</span>
+                  <Heart className="w-4 h-4 mr-2" />
+                  Wishlist
                   {wishlistItemCount > 0 && (
                     <Badge
                       variant="destructive"
-                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
+                      className="absolute top-2 right-2 h-4 w-4 flex items-center justify-center text-xs p-0"
                     >
                       {wishlistItemCount}
                     </Badge>
