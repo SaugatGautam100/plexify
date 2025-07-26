@@ -4,27 +4,50 @@ import React, { useState, useEffect } from 'react';
 import { Package, Calendar, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useFirebaseAuth } from '@/components/auth/firebase-auth-context'; // Assuming this provides user and loading state
-import { getDatabase, ref, onValue, off } from 'firebase/database'; // Import Firebase functions
-import app from '../../firebaseConfig'; // Import your Firebase config
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
+import { getDatabase, ref, onValue, off } from 'firebase/database';
+import app from '../../firebaseConfig';
 
 export default function OrdersPage() {
-  const { user, loading: authLoading } = useFirebaseAuth(); // Get user and auth loading state
+  const { user, loading: authLoading } = useFirebaseAuth();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
+
+  // Fallback image URL
+  const FALLBACK_IMAGE = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image';
+
+  // Your Firebase Storage bucket base URL (replace <your-bucket-name> with your actual bucket name)
+  const FIREBASE_STORAGE_BASE_URL = 'https://firebasestorage.googleapis.com/v0/b/<your-bucket-name>/o/';
+
+  // Function to construct full Firebase Storage URL if only a path is provided
+  const getFullImageUrl = (imagePath: string) => {
+    if (!imagePath) {
+      console.warn('Image path is empty or undefined');
+      return FALLBACK_IMAGE;
+    }
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    const encodedPath = encodeURIComponent(imagePath);
+    return `${FIREBASE_STORAGE_BASE_URL}${encodedPath}?alt=media`;
+  };
+
+  // Handle image load errors
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.warn('Image failed to load:', e.currentTarget.src);
+    e.currentTarget.src = FALLBACK_IMAGE;
+  };
 
   useEffect(() => {
     if (authLoading) {
-      // Still loading authentication status
       return;
     }
 
     if (!user) {
-      // User is not logged in, or session expired.
-      // You might want to redirect to login here if not handled by useFirebaseAuth.
       setIsLoading(false);
-      setMessage("Please log in to view your orders.");
+      setMessage('Please log in to view your orders.');
       setOrders([]);
       return;
     }
@@ -35,34 +58,88 @@ export default function OrdersPage() {
     setIsLoading(true);
     setMessage('');
 
-    // Set up a real-time listener for user's orders
-    const unsubscribe = onValue(userOrdersRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const ordersData = snapshot.val();
-        // Convert the object of orders into an array, sorting by createdAt descending
-        const fetchedOrders = Object.keys(ordersData).map(key => ({
-          id: key,
-          ...ordersData[key]
-        })).sort((a, b) => b.createdAt - a.createdAt); // Sort by most recent first
-        setOrders(fetchedOrders);
-        setMessage('');
-      } else {
-        setOrders([]);
-        setMessage("No orders found.");
-      }
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching orders:", error);
-      setMessage(`Failed to load orders: ${error.message}`);
-      setOrders([]);
-      setIsLoading(false);
-    });
+    const unsubscribe = onValue(
+      userOrdersRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const ordersData = snapshot.val();
+          const fetchedOrders = Object.keys(ordersData)
+            .map((key) => {
+              const order = {
+                id: key,
+                ...ordersData[key],
+                // Transform items to ensure productImages is an array
+                items: ordersData[key].items?.map((item: any) => ({
+                  ...item,
+                  productImages: item.productImages
+                    ? item.productImages.map((img: string) => getFullImageUrl(img))
+                    : item.productImage
+                    ? [getFullImageUrl(item.productImage)]
+                    : [FALLBACK_IMAGE],
+                })),
+              };
+              return order;
+            })
+            .sort((a, b) => b.createdAt - a.createdAt);
 
-    // Clean up the listener when the component unmounts or user changes
+          // Log productImages for debugging
+          fetchedOrders.forEach((order) => {
+            order.items?.forEach((item) => {
+              console.log(`Product Images for ${item.productTitle}:`, item.productImages);
+            });
+          });
+
+          setOrders(fetchedOrders);
+          // Initialize image indices for each item
+          const newImageIndices = fetchedOrders.reduce((acc: any, order: any) => {
+            order.items.forEach((item: any) => {
+              acc[item.productId] = 0;
+            });
+            return acc;
+          }, {});
+          setImageIndices(newImageIndices);
+          setMessage('');
+        } else {
+          setOrders([]);
+          setImageIndices({});
+          setMessage('No orders found.');
+        }
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching orders:', error);
+        setMessage(`Failed to load orders: ${error.message}`);
+        setOrders([]);
+        setImageIndices({});
+        setIsLoading(false);
+      }
+    );
+
     return () => {
       off(userOrdersRef, 'value', unsubscribe);
     };
-  }, [user, authLoading]); // Re-run effect when user or authLoading changes
+  }, [user, authLoading]);
+
+  // Cycle through images every 1.5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setImageIndices((prev) => {
+        const newIndices = { ...prev };
+        orders.forEach((order) => {
+          order.items?.forEach((item: any) => {
+            const imageCount = item.productImages?.length || 1;
+            if (imageCount > 1) {
+              newIndices[item.productId] =
+                (prev[item.productId] || 0) + 1 >= imageCount ? 0 : (prev[item.productId] || 0) + 1;
+            }
+          });
+        });
+        return newIndices;
+      });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [orders]);
 
   if (isLoading || authLoading) {
     return (
@@ -100,7 +177,7 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => (
-              <Card key={order.orderId}> {/* Use order.orderId as key */}
+              <Card key={order.orderId}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -119,46 +196,52 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     </div>
-                    <Badge variant={
-                      order.status === 'delivered' ? 'default' :
-                      order.status === 'shipped' ? 'secondary' :
-                      order.status === 'processing' || order.status === 'confirmed' ? 'outline' : 'destructive'
-                    }>
+                    <Badge
+                      variant={
+                        order.status === 'delivered'
+                          ? 'default'
+                          : order.status === 'shipped'
+                          ? 'secondary'
+                          : order.status === 'processing' || order.status === 'confirmed'
+                          ? 'outline'
+                          : 'destructive'
+                      }
+                    >
                       {order.status}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Order Items */}
                     <div className="space-y-3">
-                      {order.items && order.items.map((item) => ( // Ensure items exist before mapping
-                        <div key={item.productId} className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={item.productImage || 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image'} // Fallback image
-                              alt={item.productTitle || 'Product Image'} // Use productTitle for alt
-                              className="w-full h-full object-cover rounded-lg"
-                            />
+                      {order.items &&
+                        order.items.map((item: any) => (
+                          <div key={item.productId} className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
+                              <img
+                                src={item.productImages[imageIndices[item.productId] || 0]}
+                                alt={item.productTitle || 'Product Image'}
+                                className="w-full h-full object-cover rounded-lg"
+                                loading="lazy"
+                                onError={handleImageError}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium">{item.productTitle}</h4>
+                              <p className="text-sm text-gray-600">
+                                Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="font-medium">
+                              Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{item.productTitle}</h4> {/* Use productTitle */}
-                            <p className="text-sm text-gray-600">
-                              Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)} {/* Use productQuantity and productPrice */}
-                            </p>
-                          </div>
-                          <div className="font-medium">
-                            Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
-
-                    {/* Order Total */}
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold">Total</span>
-                        <span className="font-bold text-lg">Rs.{order.finalTotal.toFixed(2)}</span> {/* Use finalTotal */}
+                        <span className="font-bold text-lg">Rs.{order.finalTotal.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

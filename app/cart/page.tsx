@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,7 +12,7 @@ import CartItem from '@/components/cart/cart-item';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, get, remove, push, set } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
-import app from '../firebaseConfig';
+import app from '@/app/firebaseConfig';
 
 export default function CartPage() {
   const router = useRouter();
@@ -172,13 +171,17 @@ export default function CartPage() {
 
       const userProfileRef = ref(db, `AllUsers/Users/${currentUser.uid}`);
       const userProfileSnapshot = await get(userProfileRef);
-      let userPhoneNumber = '';
+      let userName = '';
       let userAddress = '';
+      let userPhone = '';
+      let userEmail = '';
 
       if (userProfileSnapshot.exists()) {
         const profileData = userProfileSnapshot.val();
-        userPhoneNumber = profileData.phoneNumber || '';
-        userAddress = profileData.address || '';
+        userName = profileData.UserName || '';
+        userAddress = profileData.UserAddress || '';
+        userPhone = profileData.UserPhone || '';
+        userEmail = profileData.UserEmail || '';
       }
 
       const orderRefUser = ref(db, `AllUsers/Users/${currentUser.uid}/UserOrders`);
@@ -190,9 +193,10 @@ export default function CartPage() {
       const orderData = {
         orderId: orderId,
         userId: currentUser.uid,
-        userEmail: currentUser.email || 'N/A',
-        userPhoneNumber: userPhoneNumber,
+        userName: userName,
         userAddress: userAddress,
+        userPhone: userPhone,
+        userEmail: userEmail,
         orderNumber: `ORD-${Date.now()}`,
         createdAt: Date.now(),
         paymentMethod: 'Cash on Delivery',
@@ -222,7 +226,7 @@ export default function CartPage() {
         `- Title: ${item.productTitle}; Price: Rs.${item.productPrice.toFixed(2)}; Quantity: ${item.productQuantity}; Category: ${item.productCategory}; Unit: ${item.productUnit}; Type: ${item.productType}; Images: [${item.productImages.join(', ')}]`
       ).join('\n');
       
-      const notificationMessage = `Your order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nShipping: ${orderData.shipping === 0 ? 'Free' : `Rs.${orderData.shipping.toFixed(2)}`}\nTax: Rs.${orderData.tax.toFixed(2)}\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
+      const notificationMessage = `Dear ${userName},\nYour order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nShipping to: ${userAddress}\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nShipping: ${orderData.shipping === 0 ? 'Free' : `Rs.${orderData.shipping.toFixed(2)}`}\nTax: Rs.${orderData.tax.toFixed(2)}\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
 
       await saveNotificationToFirebase(
         currentUser.uid,

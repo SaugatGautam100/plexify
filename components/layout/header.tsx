@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,16 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, onValue, off } from 'firebase/database';
-import app from '../../app/firebaseConfig';
+import app from '@/app/firebaseConfig';
 import { categories } from '@/lib/mock-data';
 import Image from 'next/image';
 
-/**
- * Header component provides navigation, search, cart, wishlist, and user authentication UI.
- * Uses real-time listeners for cart, wishlist, and unread notification counts from Firebase.
- */
+interface UserData {
+  UserName?: string;
+  UserEmail?: string;
+  UserPhone?: string;
+  UserAddress?: string;
+  UserAvatar?: string;
+}
+
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,9 +33,61 @@ export default function Header() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [countsLoading, setCountsLoading] = useState(true);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: { [itemIndex: number]: number } }>({});
+  const [userProfileData, setUserProfileData] = useState<UserData>({});
   const searchInputRef = useRef(null);
   const router = useRouter();
   const { user, userData, loading, logout } = useFirebaseAuth();
+  const { toast } = useToast();
+
+  /**
+   * Fetch user profile data directly from Firebase
+   */
+  useEffect(() => {
+    if (loading || !user) {
+      setUserProfileData({});
+      return;
+    }
+
+    const db = getDatabase(app);
+    const userRef = ref(db, `AllUsers/Users/${user.uid}`);
+
+    const unsubscribe = onValue(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        console.log('Header: Fetched user data:', data); // Debugging
+        setUserProfileData({
+          UserName: data.UserName || '',
+          UserEmail: data.UserEmail || user.email || '',
+          UserPhone: data.UserPhone || user.phoneNumber || '',
+          UserAddress: data.UserAddress || '',
+          UserAvatar: data.UserAvatar || '',
+        });
+      } else {
+        console.log('Header: No user data found in Firebase');
+        setUserProfileData({
+          UserName: '',
+          UserEmail: user.email || '',
+          UserPhone: user.phoneNumber || '',
+          UserAddress: '',
+          UserAvatar: '',
+        });
+        toast({
+          title: 'Warning',
+          description: 'No profile data found. Please update your profile.',
+          variant: 'default',
+        });
+      }
+    }, (error) => {
+      console.error('Header: Error fetching user data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile data. Please try again.',
+        variant: 'destructive',
+      });
+    });
+
+    return () => off(userRef, 'value', unsubscribe);
+  }, [user, loading, toast]);
 
   /**
    * Sets up real-time listeners for cart, wishlist, and unread notification counts.
@@ -67,6 +123,11 @@ export default function Header() {
       console.error('Error listening to cart updates:', error);
       setCartItemCount(0);
       setCountsLoading(false);
+      toast({
+        title: 'Error',
+        description: 'Failed to load cart data. Please try again.',
+        variant: 'destructive',
+      });
     });
 
     // Real-time listener for wishlist count
@@ -77,6 +138,11 @@ export default function Header() {
     }, (error) => {
       console.error('Error listening to wishlist updates:', error);
       setWishlistItemCount(0);
+      toast({
+        title: 'Error',
+        description: 'Failed to load wishlist data. Please try again.',
+        variant: 'destructive',
+      });
     });
 
     // Real-time listener for unread notifications
@@ -109,6 +175,11 @@ export default function Header() {
       setUnreadNotificationCount(0);
       setRecentNotifications([]);
       setImageIndices({});
+      toast({
+        title: 'Error',
+        description: 'Failed to load notifications. Please try again.',
+        variant: 'destructive',
+      });
     });
 
     return () => {
@@ -116,7 +187,7 @@ export default function Header() {
       off(wishlistRef, 'value', unsubscribeWishlist);
       off(notificationsRef, 'value', unsubscribeNotifications);
     };
-  }, [user, loading]);
+  }, [user, loading, toast]);
 
   // Automatic carousel for item images
   useEffect(() => {
@@ -168,33 +239,38 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await logout();
+      toast({
+        title: 'Logged out',
+        description: 'You have been successfully logged out.',
+      });
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to log out. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
   const getUserDisplayName = () => {
-    if (userData?.displayName) {
-      return userData.displayName;
-    }
-    if (userData?.mobileNumber) {
-      return userData.mobileNumber.replace(/^\+977/, '').replace(/^\+/, '');
-    }
-    if (userData?.phoneNumber) {
-      return userData.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
-    }
-    if (userData?.email) {
-      return userData.email;
-    }
-    if (user?.phoneNumber) {
-      return user.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
-    }
-    return user?.email || 'User';
+    if (!user) return 'Guest';
+    // Prioritize userProfileData (direct Firebase fetch) over userData (hook)
+    // if (userProfileData.UserName) return userProfileData.UserName;
+    // if (userData?.UserName) return userData.UserName;
+    // if (userProfileData.UserPhone) return userProfileData.UserPhone.replace(/^\+977/, '').replace(/^\+/, '');
+    // if (userData?.UserPhone) return userData.UserPhone.replace(/^\+977/, '').replace(/^\+/, '');
+    // if (userProfileData.UserEmail) return userProfileData.UserEmail;
+    // if (userData?.UserEmail) return userData.UserEmail;
+    // if (user?.phoneNumber) return user.phoneNumber.replace(/^\+977/, '').replace(/^\+/, '');
+    return userProfileData?.UserName;
+    
   };
 
   const getUserContactInfo = () => {
-    return userData?.email || userData?.mobileNumber || userData?.phoneNumber || user?.email || user?.phoneNumber || '';
+    if (!user) return '';
+    return userProfileData.UserPhone || userData?.UserEmail || userProfileData.UserPhone || userData?.UserPhone || user?.email || user?.phoneNumber || '';
   };
 
   return (
@@ -406,7 +482,7 @@ export default function Header() {
               <SheetContent side="right" className="w-full sm:max-w-sm">
                 <MobileMenu
                   user={user}
-                  userData={userData}
+                  userData={userProfileData} // Use direct Firebase data
                   loading={loading}
                   cartItemCount={cartItemCount}
                   wishlistItemCount={wishlistItemCount}
@@ -441,9 +517,19 @@ export default function Header() {
   );
 }
 
-/**
- * MobileMenu component renders the mobile navigation menu.
- */
+interface MobileMenuProps {
+  user: any;
+  userData: UserData;
+  loading: boolean;
+  cartItemCount: number;
+  wishlistItemCount: number;
+  notificationCount: number;
+  onLogout: () => void;
+  onClose: () => void;
+  getUserDisplayName: () => string;
+  getUserContactInfo: () => string;
+}
+
 function MobileMenu({
   user,
   userData,
@@ -455,18 +541,7 @@ function MobileMenu({
   onClose,
   getUserDisplayName,
   getUserContactInfo
-}: {
-  user: any;
-  userData: any;
-  loading: boolean;
-  cartItemCount: number;
-  wishlistItemCount: number;
-  notificationCount: number;
-  onLogout: () => void;
-  onClose: () => void;
-  getUserDisplayName: () => string;
-  getUserContactInfo: () => string;
-}) {
+}: MobileMenuProps) {
   const router = useRouter();
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
@@ -514,6 +589,7 @@ function MobileMenu({
             <div className="text-center">Loading...</div>
           ) : user ? (
             <div className="space-y-3">
+              <Link href="/profile">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                   <User className="w-5 h-5 text-blue-600" />
@@ -521,11 +597,9 @@ function MobileMenu({
                 <div>
                   <div className="font-medium">{getUserDisplayName()}</div>
                   <div className="text-sm text-gray-500">{getUserContactInfo()}</div>
-                  {userData && (
-                    <div className="text-xs text-gray-400">Type: {userData.userType}</div>
-                  )}
                 </div>
               </div>
+              </Link>
               <div className="space-y-2">
                 {/* Notifications Button */}
                 <Button

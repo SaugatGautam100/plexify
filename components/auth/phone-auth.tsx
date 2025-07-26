@@ -25,6 +25,7 @@ export default function PhoneAuth() {
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const [username, setUsername] = useState('');
   const [useraddress, setUseraddress] = useState('');
+  const [useremail, setUseremail] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
@@ -71,11 +72,11 @@ export default function PhoneAuth() {
 
       if (!snapshot.exists()) {
         const userData = {
-          uid: user.uid,
-          phoneNumber: user.phoneNumber,
-          username,
-          useraddress,
-          address: '',
+          UserName: username,
+          UserAddress: useraddress,
+          UserPhone: user.phoneNumber,
+          UserEmail: useremail,
+          UserAvatar: 'https://static.vecteezy.com/system/resources/previews/020/911/732/non_2x/profile-icon-avatar-icon-user-icon-person-icon-free-png.png',
           UserCartItems: {},
           UserWishlistItems: {}
         };
@@ -105,10 +106,10 @@ export default function PhoneAuth() {
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!phoneNumber.trim()) {
+    if (!phoneNumber.trim() || !username.trim() || !useraddress.trim() || !useremail.trim()) {
       toast({
         title: 'Error',
-        description: 'Please enter a valid phone number.',
+        description: 'Please fill in all fields.',
         variant: 'destructive',
       });
       return;
@@ -124,6 +125,16 @@ export default function PhoneAuth() {
       toast({
         title: 'Invalid Phone Number',
         description: 'Please enter a valid phone number with country code.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(useremail)) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
         variant: 'destructive',
       });
       return;
@@ -305,6 +316,17 @@ export default function PhoneAuth() {
                 placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="useremail">User Email</Label>
+              <Input
+                id="useremail"
+                type="email"
+                placeholder="Enter your email"
+                value={useremail}
+                onChange={(e) => setUseremail(e.target.value)}
                 required
               />
             </div>
