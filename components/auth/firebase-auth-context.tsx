@@ -6,9 +6,16 @@ import { getDatabase, ref, get, set } from 'firebase/database';
 import { auth } from '@/app/firebaseConfig';
 import app from '@/app/firebaseConfig';
 
+// Updated UserData interface to reflect the structure saved in phone-auth.tsx
 interface UserData {
   uid: string;
-  address: string;
+  UserName: string;
+  UserAddress: string;
+  UserPhone: string;
+  UserEmail: string;
+  UserAvatar: string;
+  UserCartItems: object;
+  UserWishlistItems: object;
 }
 
 interface AuthContextType {
@@ -37,29 +44,38 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       const db = getDatabase(app);
       const userRef = ref(db, `AllUsers/Users/${firebaseUser.uid}`);
       const snapshot = await get(userRef);
-      
+
       if (snapshot.exists()) {
         const data = snapshot.val();
         setUserData({
           uid: firebaseUser.uid,
-          address: data.address || '',
+          UserName: data.UserName || '',
+          UserAddress: data.UserAddress || '',
+          UserPhone: data.UserPhone || '',
+          UserEmail: data.UserEmail || '',
+          UserAvatar: data.UserAvatar || 'https://static.vecteezy.com/system/resources/previews/020/911/732/non_2x/profile-icon-avatar-icon-user-icon-person-icon-free-png.png',
+          UserCartItems: data.UserCartItems || {},
+          UserWishlistItems: data.UserWishlistItems || {},
         });
         console.log('User data loaded from Firebase:', data);
       } else {
-        // Create minimal user data (excluding phoneNumber, usertype, createdAt)
-        const newUserData: UserData = {
-          uid: firebaseUser.uid,
-          address: '',
-        };
-        
-        await set(userRef, {
-          ...newUserData,
-          UserCartItems: {},
-          UserWishlistItems: {}
+        // If data does not exist, it implies that phone-auth.tsx might not have saved it yet,
+        // or the user authenticated via a different method that doesn't populate these fields.
+        // We should NOT create an incomplete record here, as this could lead to race conditions
+        // where incomplete data is written before the full data from phone-auth.tsx.
+        // The responsibility of initial comprehensive data creation lies with phone-auth.tsx.
+        console.warn('User data not found for UID:', firebaseUser.uid, ' - it might be created by phone-auth.tsx shortly or missing.');
+        // Set userData to a minimal structure with available FirebaseUser info, but do not write this to the DB here.
+        setUserData({
+            uid: firebaseUser.uid,
+            UserName: '', // Will be empty until phone-auth.tsx saves it
+            UserAddress: '', // Will be empty until phone-auth.tsx saves it
+            UserPhone: firebaseUser.phoneNumber || '',
+            UserEmail: firebaseUser.email || '', // May be empty for phone auth users initially
+            UserAvatar: 'https://static.vecteezy.com/system/resources/previews/020/911/732/non_2x/profile-icon-avatar-icon-user-icon-person-icon-free-png.png',
+            UserCartItems: {},
+            UserWishlistItems: {},
         });
-        
-        setUserData(newUserData);
-        console.log('New user data created:', newUserData);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -76,13 +92,13 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
         await fetchUserData(firebaseUser);
       } else {
         setUserData(null);
       }
-      
+
       setLoading(false);
     });
 

@@ -70,6 +70,7 @@ export default function PhoneAuth() {
 
       const snapshot = await get(userRef);
 
+      // Only create new user data if it doesn't already exist
       if (!snapshot.exists()) {
         const userData = {
           UserName: username,
@@ -186,6 +187,7 @@ export default function PhoneAuth() {
         variant: 'destructive',
       });
 
+      // Clear and re-initialize reCAPTCHA on error
       if (recaptchaVerifier) {
         recaptchaVerifier.clear();
         setRecaptchaVerifier(null);
@@ -268,6 +270,7 @@ export default function PhoneAuth() {
     setStep('phone');
     setConfirmationResult(null);
 
+    // Clear and re-initialize reCAPTCHA for resend
     if (recaptchaVerifier) {
       recaptchaVerifier.clear();
       setRecaptchaVerifier(null);
@@ -331,6 +334,7 @@ export default function PhoneAuth() {
               />
             </div>
             <div className="space-y-2">
+              {/* FIXED: Corrected closing tag from </labe> to </Label> */}
               <Label htmlFor="useraddress">User Address</Label>
               <Input
                 id="useraddress"
