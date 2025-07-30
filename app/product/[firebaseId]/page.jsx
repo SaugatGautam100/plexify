@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 /**
@@ -28,8 +28,12 @@ function ProductDetailPage() {
   const [message, setMessage] = useState('');
   // State for quantity input
   const [productQuantity, setProductQuantity] = useState(1);
-  // State for carousel current image index (kept for consistency with prior use of imageUris)
+  // State for carousel current image index for the main display
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // State to control the visibility of the zoomed image modal
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  // State for the current image index when the zoom modal is open
+  const [zoomedImageIndex, setZoomedImageIndex] = useState(0);
 
   /**
    * Fetches the specific product's data from Firebase Realtime Database.
@@ -251,9 +255,59 @@ function ProductDetailPage() {
     setProductQuantity(value);
   };
 
-  // Carousel navigation functions (kept as no-op for consistency)
-  const handlePrevImage = useCallback(() => {}, []);
-  const handleNextImage = useCallback(() => {}, []);
+  // Open the zoom modal and set the initial image
+  const openZoomModal = (index) => {
+    setZoomedImageIndex(index);
+    setIsZoomModalOpen(true);
+  };
+
+  // Close the zoom modal
+  const closeZoomModal = () => {
+    setIsZoomModalOpen(false);
+  };
+
+  // Navigate to the previous image in the carousel (main display)
+  const handlePrevImage = useCallback(() => {
+    if (productData && productData.productImageUris) {
+      setCurrentImageIndex((prevIndex) =>
+        prevIndex === 0 ? productData.productImageUris.length - 1 : prevIndex - 1
+      );
+    }
+  }, [productData]);
+
+  // Navigate to the next image in the carousel (main display)
+  const handleNextImage = useCallback(() => {
+    if (productData && productData.productImageUris) {
+      setCurrentImageIndex((prevIndex) =>
+        prevIndex === productData.productImageUris.length - 1 ? 0 : prevIndex + 1
+      );
+    }
+  }, [productData]);
+
+  // Navigate to the previous image in the zoomed carousel
+  const handlePrevZoomedImage = useCallback(() => {
+    if (productData && productData.productImageUris) {
+      setZoomedImageIndex((prevIndex) =>
+        prevIndex === 0 ? productData.productImageUris.length - 1 : prevIndex - 1
+      );
+      if (productData.productImageUris.length === 0) {
+        setZoomedImageIndex(0); // Ensure it's not negative if array becomes empty
+      }
+    }
+  }, [productData]);
+
+  // Navigate to the next image in the zoomed carousel
+  const handleNextZoomedImage = useCallback(() => {
+    if (productData && productData.productImageUris) {
+      setZoomedImageIndex((prevIndex) =>
+        prevIndex === productData.productImageUris.length - 1 ? 0 : prevIndex + 1
+      );
+      if (productData.productImageUris.length === 0) {
+        setZoomedImageIndex(0); // Ensure it's not out of bounds if array becomes empty
+      }
+    }
+  }, [productData]);
+
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
@@ -290,23 +344,24 @@ function ProductDetailPage() {
 
           {productData ? (
             <Card className="rounded-xl shadow-lg overflow-hidden md:flex md:items-start md:space-x-8 p-6">
-              <div className="relative w-full md:w-1/2 rounded-lg overflow-hidden flex-shrink-0 mb-6 md:mb-0">
+              {/* Main Product Image Section */}
+              {/* Parent div for the main image with relative position and defined dimensions */}
+              <div className="relative w-full md:w-1/2 h-[400px] rounded-lg overflow-hidden flex-shrink-0 mb-6 md:mb-0">
                 {productData.productImageUris && productData.productImageUris.length > 0 ? (
                   <>
                     <Image
                       src={productData.productImageUris[currentImageIndex]}
                       alt={`${productData.productTitle || "Product Image"}`}
-                      width={800}
-                      height={600}
-                      layout="responsive"
-                      objectFit="contain"
-                      className="rounded-lg"
+                      layout="fill"        // Use layout="fill"
+                      objectFit="contain"  // Ensures the entire image is visible
+                      className="rounded-lg cursor-pointer"
                       onError={(e) => {
                         e.currentTarget.src = "https://placehold.co/800x600/E0E0E0/808080?text=Image+Error";
                       }}
+                      onClick={() => openZoomModal(currentImageIndex)}
                     />
                     {productData.productImageUris.length > 1 && (
-                      <div className="absolute top-1/2 transform -translate-y-1/2 flex justify-between w-full px-4">
+                      <div className="absolute top-1/2 transform -translate-y-1/2 flex justify-between w-full px-4 z-10">
                         <Button
                           variant="outline"
                           size="icon"
@@ -326,8 +381,8 @@ function ProductDetailPage() {
                       </div>
                     )}
                     {productData.productImageUris.length > 1 && (
-                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-sm">
-                        {currentImageIndex + 1} / {productData.productImageUris.length}
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-sm z-10">
+                        {`${currentImageIndex + 1} / ${productData.productImageUris.length}`}
                       </div>
                     )}
                   </>
@@ -335,9 +390,7 @@ function ProductDetailPage() {
                   <Image
                     src="https://placehold.co/800x600/E0E0E0/808080?text=No+Image"
                     alt="No Image Available"
-                    width={800}
-                    height={600}
-                    layout="responsive"
+                    layout="fill"
                     objectFit="contain"
                     className="rounded-lg"
                   />
@@ -380,7 +433,6 @@ function ProductDetailPage() {
                   </p>
                 </div>
 
-                {/* Added flex-wrap here to ensure buttons wrap on small screens */}
                 <div className="flex flex-wrap gap-4 mt-6 items-center">
                   <div className="flex items-center">
                     <label htmlFor="quantity" className="mr-2 text-md font-semibold">Quantity:</label>
@@ -412,7 +464,7 @@ function ProductDetailPage() {
                 </div>
                 {productData.productStock < 10 && (
                   <p className="text-sm text-red-600 mt-2">
-                    Only {productData.productStock} units left in stock!
+                    {`Only ${productData.productStock} units left in stock!`}
                   </p>
                 )}
               </CardContent>
@@ -427,6 +479,66 @@ function ProductDetailPage() {
             )
           )}
         </>
+      )}
+
+      {/* Zoomed Image Modal */}
+      {isZoomModalOpen && productData && productData.productImageUris && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80"
+          onClick={closeZoomModal}
+        >
+          <div
+            className="relative bg-white p-4 rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={closeZoomModal}
+              className="absolute top-2 right-2 text-white bg-gray-700 hover:bg-gray-600 rounded-full z-10"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
+            {/* Parent div for the zoomed image with relative position and defined dimensions */}
+            <div className="relative w-full h-[70vh] md:h-[80vh] max-w-[1200px] max-h-[900px] mx-auto flex items-center justify-center">
+              <Image
+                src={productData.productImageUris[zoomedImageIndex]}
+                alt={`${productData.productTitle || "Product Image"} - Zoomed`}
+                layout="fill"       // Use layout="fill"
+                objectFit="contain" // Ensures the entire image is visible within the modal
+                className="rounded-lg"
+                onError={(e) => {
+                  e.currentTarget.src = "https://placehold.co/1000x800/E0E0E0/808080?text=Image+Error";
+                }}
+              />
+
+              {productData.productImageUris.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handlePrevZoomedImage}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleNextZoomedImage}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </Button>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">
+                    {`${zoomedImageIndex + 1} / ${productData.productImageUris.length}`}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

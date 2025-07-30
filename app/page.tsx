@@ -42,9 +42,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [featuredProducts]);
 
-  console.log("Firebase User:", user);
-  console.log("Loading:", loading);
-
+ 
   if (loading) {
     return (
       <div className="text-center py-12">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -268,190 +267,195 @@ export default function ProductsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          {/* Header with Product Count and Sort */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold text-gray-900">
-                All Products
-              </h1>
-            </div>
+          {/* Fixed Header for Mobile */}
+          <div className="lg:static fixed top-0 left-0 w-full bg-white z-10 px-4 pt-8 pb-4 shadow-md">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div>
+                <h1 className="text-3xl font-extrabold text-gray-900">
+                  All Products
+                </h1>
+              </div>
 
-            <div className="flex items-center gap-4">
-              {/* Mobile Filter Toggle */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50 transition-colors duration-200">
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filters
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-sm rounded-l-xl p-6">
-                  <div className="mt-4">
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-semibold mb-3 text-gray-700">Search</h3>
-                        <Input
-                          placeholder="Search products..."
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-3 text-gray-700">Category</h3>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                          <SelectTrigger className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <SelectValue placeholder="All Categories" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-lg shadow-lg">
-                            {uniqueCategories.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category === 'all' ? 'All Categories' : category}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
-                        <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-4">
+                {/* Mobile Filter Toggle */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="sm" className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50 transition-colors duration-200">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Filters
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-sm rounded-l-xl p-6">
+                    <div className="mt-4">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="font-semibold mb-3 text-gray-700">Search</h3>
                           <Input
-                            type="number"
-                            placeholder="Min"
-                            value={priceRange.min}
-                            onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-                            className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          <span className="text-gray-500">-</span>
-                          <Input
-                            type="number"
-                            placeholder="Max"
-                            value={priceRange.max}
-                            onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                            placeholder="Search products..."
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
+                        <div>
+                          <h3 className="font-semibold mb-3 text-gray-700">Category</h3>
+                          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                              <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-lg shadow-lg">
+                              {uniqueCategories.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {category === 'all' ? 'All Categories' : category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              placeholder="Min"
+                              value={priceRange.min}
+                              onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                              className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <span className="text-gray-500">-</span>
+                            <Input
+                              type="number"
+                              placeholder="Max"
+                              value={priceRange.max}
+                              onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                              className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200"
+                          onClick={clearFilters}
+                        >
+                          Clear Filters
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200"
-                        onClick={clearFilters}
-                      >
-                        Clear Filters
-                      </Button>
                     </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  </SheetContent>
+                </Sheet>
 
-              {/* Sort By Dropdown */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-48 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                  <SelectValue placeholder="Sort By" />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg shadow-lg">
-                  <SelectItem value="featured">Featured</SelectItem>
-                  <SelectItem value="price-low">Price: Low to High</SelectItem>
-                  <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  <SelectItem value="rating">Highest Rated</SelectItem>
-                  <SelectItem value="newest">Newest</SelectItem>
-                </SelectContent>
-              </Select>
+                {/* Sort By Dropdown */}
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg shadow-lg">
+                    <SelectItem value="featured">Featured</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="rating">Highest Rated</SelectItem>
+                    <SelectItem value="newest">Newest</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          {/* Conditional Rendering */}
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500 text-lg">Loading products...</p>
-            </div>
-          ) : (
-            <>
-              {message && (
-                <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
-                  <span className="block sm:inline">{message}</span>
-                </div>
-              )}
+          {/* Scrollable Product Container */}
+          <div className="pt-28 lg:pt-0 max-h-[calc(100vh-7rem)] overflow-y-auto">
+            {/* Conditional Rendering */}
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500 text-lg">Loading products...</p>
+              </div>
+            ) : (
+              <>
+                {message && (
+                  <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                    <span className="block sm:inline">{message}</span>
+                  </div>
+                )}
 
-              {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {currentProducts.map((item) => (
-                    <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
-                      <Link href={`/product/${item.productId}`} className="block">
-                        <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-white border-b border-gray-200">
-                          {item.productImageUris && item.productImageUris.length > 0 ? (
-                            <>
+                {filteredProducts.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {currentProducts.map((item) => (
+                      <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                        <Link href={`/product/${item.productId}`} className="block">
+                          <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-white border-b border-gray-200">
+                            {item.productImageUris && item.productImageUris.length > 0 ? (
+                              <>
+                                <Image
+                                  src={item.productImageUris[imageIndices[item.productId] || 0]}
+                                  alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                                  fill
+                                  className="object-contain transition-transform duration-300 hover:scale-105"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
+                                  }}
+                                />
+                                {item.productImageUris.length > 1 && (
+                                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                                    {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
                               <Image
-                                src={item.productImageUris[imageIndices[item.productId] || 0]}
-                                alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                                src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
+                                alt="No Image Available"
                                 fill
                                 className="object-contain transition-transform duration-300 hover:scale-105"
-                                onError={(e) => {
-                                  e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
-                                }}
                               />
-                              {item.productImageUris.length > 1 && (
-                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-                                  {imageIndices[item.productId] + 1} / {item.productImageUris.length}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <Image
-                              src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
-                              alt="No Image Available"
-                              fill
-                              className="object-contain transition-transform duration-300 hover:scale-105"
-                            />
-                          )}
-                        </div>
-                        <CardContent className="p-4">
-                          <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">{item.productTitle}</h2>
-                          <p className="text-sm text-gray-600">{item.productCategory}</p>
-                          <p className="text-sm text-gray-600">Available: {item.productStock}</p>
-                          <div className="mt-2 text-xl font-bold text-blue-900">
-                            Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
-                            <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                            )}
                           </div>
-                        </CardContent>
-                      </Link>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 col-span-full">
-                  <h3 className="text-xl font-semibold mb-2 text-gray-700">No products available</h3>
-                  <p className="text-gray-600">Try adjusting your search criteria or check back later.</p>
-                </div>
-              )}
+                          <CardContent className="p-4">
+                            <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">{item.productTitle}</h2>
+                            <p className="text-sm text-gray-600">{item.productCategory}</p>
+                            <p className="text-sm text-gray-600">Available: {item.productStock}</p>
+                            <div className="mt-2 text-xl font-bold text-blue-900">
+                              Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
+                              <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                            </div>
+                          </CardContent>
+                        </Link>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 col-span-full">
+                    <h3 className="text-xl font-semibold mb-2 text-gray-700">No products available</h3>
+                    <p className="text-gray-600">Try adjusting your search criteria or check back later.</p>
+                  </div>
+                )}
 
-              {filteredProducts.length > 0 && (
-                <div className="flex justify-center items-center gap-4 mt-8">
-                  <Button
-                    size="lg"
-                    className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <Button
-                    size="lg"
-                    className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+                {filteredProducts.length > 0 && (
+                  <div className="flex justify-center items-center gap-4 mt-8">
+                    <Button
+                      size="lg"
+                      className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      size="lg"
+                      className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

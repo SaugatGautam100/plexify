@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
@@ -9,9 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { categories } from '@/lib/mock-data';
+import { categories } from '@/lib/mock-data'; // Assuming you have this mock data for categories
 import { getDatabase, ref, get } from 'firebase/database';
-import app from '../../../app/firebaseConfig';
+import app from '../../../app/firebaseConfig'; // Adjust the path if necessary
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -23,27 +22,36 @@ import Image from 'next/image';
 export default function CategoryPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const categorySlug = params.slug as string;
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  // Ensure categorySlug is always a string and decoded
+  const categorySlug = Array.isArray(params.slug) ? params.slug[0] : (params.slug || '');
+
+  const [products, setProducts] = useState<any[]>([]); // Stores all products for the category
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]); // Stores products after applying filters/sort
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('featured');
-  const [showFilters, setShowFilters] = useState(false);
-  const [imageIndices, setImageIndices] = useState({});
-  const minInputRef = useRef(null);
-  const maxInputRef = useRef(null);
+  const [showFilters, setShowFilters] = useState(false); // State for mobile sheet visibility
+  const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
 
-  // Find the category from mock data
+  const minInputRef = useRef<HTMLInputElement>(null);
+  const maxInputRef = useRef<HTMLInputElement>(null);
+
+  // Find the category from mock data based on the slug
   const category = categories.find((cat) => cat.slug === categorySlug);
 
   /**
-   * Fetches products for the category from Firebase Realtime Database.
+   * Fetches products for the specific category from Firebase Realtime Database.
    */
   const fetchProducts = useCallback(async () => {
-    if (!category) return;
+    if (!category) {
+      setIsLoading(false);
+      setMessage('Category not found.');
+      setProducts([]);
+      setFilteredProducts([]);
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -59,19 +67,24 @@ export default function CategoryPage() {
             productId: key,
             ...allProducts[key],
           }))
+          // Filter products to include only those matching the current category's name
           .filter((product) => product.productCategory === category.name);
-        setProducts(categoryProducts);
-        setFilteredProducts(categoryProducts);
+
+        setProducts(categoryProducts); // Set the base products for the category
+        setFilteredProducts(categoryProducts); // Initialize filtered products with all category products
         setImageIndices(
           categoryProducts.reduce((acc, item) => ({
             ...acc,
             [item.productId]: 0,
           }), {})
         );
+        if (categoryProducts.length === 0) {
+          setMessage(`No products found in "${category.name}" category.`);
+        }
       } else {
         setProducts([]);
         setFilteredProducts([]);
-        setMessage('No products found for this category.');
+        setMessage('No products found in the database for this category.');
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -82,7 +95,7 @@ export default function CategoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [category]);
+  }, [category, categorySlug]); // Include categorySlug in dependencies
 
   /**
    * Initializes search query from URL parameter.
@@ -122,7 +135,7 @@ export default function CategoryPage() {
    * Applies filters and sorting to the products.
    */
   useEffect(() => {
-    let result = [...products];
+    let result = [...products]; // Start with the category-specific products
 
     // Search filter
     if (searchQuery.trim()) {
@@ -159,6 +172,7 @@ export default function CategoryPage() {
         result.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
         break;
       default:
+        // Default sort (e.g., 'featured' or by Firebase key if no other sort is applied)
         break;
     }
 
@@ -169,11 +183,15 @@ export default function CategoryPage() {
    * Handles price range input changes, allowing empty strings and partial inputs.
    */
   const handlePriceChange = (field: 'min' | 'max', value: string, inputRef: React.RefObject<HTMLInputElement>) => {
-    if (value === '' || !isNaN(parseFloat(value)) || value === '.') {
+    // Allow empty string, or if it's a number (including decimal point only)
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setPriceRange((prev) => ({ ...prev, [field]: value }));
+      // This timeout ensures the state updates before attempting to focus
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
+          // To maintain cursor position, especially important for mobile keyboards
+          inputRef.current.setSelectionRange(value.length, value.length);
         }
       }, 0);
     }
@@ -188,15 +206,17 @@ export default function CategoryPage() {
     if (!searchParams.get('search')) {
       setSearchQuery('');
     }
+    // Reset filteredProducts to the original category-specific products
     setFilteredProducts(products);
+    setShowFilters(false); // Close mobile filter sheet after clearing
   };
 
-  // If category not found
+  // If category not found from mock data
   if (!category) {
     return (
       <div className="container mx-auto px-4 py-16 text-center font-inter">
-        <h1 className="text-2xl font-bold mb-4">Category not found</h1>
-        <p className="text-gray-600 mb-8">The category you're looking for doesn't exist.</p>
+        <h1 className="text-2xl font-bold mb-4">Category Not Found</h1>
+        <p className="text-gray-600 mb-8">The category you're looking for doesn't exist or is invalid.</p>
         <Button onClick={() => window.history.back()} className="rounded-lg bg-blue-600 hover:bg-blue-700">
           Go Back
         </Button>
@@ -206,7 +226,7 @@ export default function CategoryPage() {
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Search */}
+      {/* Search Input */}
       <div>
         <h3 className="font-semibold mb-3 text-gray-700">Search</h3>
         <Input
@@ -218,12 +238,12 @@ export default function CategoryPage() {
         />
       </div>
 
-      {/* Price Range */}
+      {/* Price Range Input */}
       <div>
         <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
         <div className="flex items-center space-x-2">
           <Input
-            type="text"
+            type="text" // Use text to allow partial number input like "12."
             inputMode="numeric"
             pattern="[0-9]*\.?[0-9]*"
             placeholder="Min"
@@ -234,7 +254,7 @@ export default function CategoryPage() {
           />
           <span className="text-gray-500">-</span>
           <Input
-            type="text"
+            type="text" // Use text to allow partial number input like "12."
             inputMode="numeric"
             pattern="[0-9]*\.?[0-9]*"
             placeholder="Max"
@@ -246,11 +266,11 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* Clear Filters */}
+      {/* Clear Filters Button */}
       <Button
         variant="outline"
         onClick={clearFilters}
-        className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+        className="w-full rounded-lg border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200"
       >
         Clear Filters
       </Button>
@@ -279,6 +299,7 @@ export default function CategoryPage() {
         </div>
       </div>
 
+      {/* Message for loading/errors/no products */}
       {message && (
         <div
           className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg relative mb-6"
@@ -289,7 +310,7 @@ export default function CategoryPage() {
       )}
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Desktop Filters */}
+        {/* Desktop Filters Section */}
         <div className="hidden lg:block w-64 flex-shrink-0">
           <Card className="rounded-xl shadow-lg">
             <CardHeader className="bg-gray-50 rounded-t-xl p-4">
@@ -301,9 +322,9 @@ export default function CategoryPage() {
           </Card>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div className="flex-1">
-          {/* Header */}
+          {/* Header with Sort and Mobile Filter Toggle */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <h2 className="text-2xl font-bold">{category.name} Products</h2>
@@ -319,7 +340,7 @@ export default function CategoryPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50"
+                    className="lg:hidden rounded-lg border-gray-300 hover:bg-gray-50 transition-colors duration-200"
                   >
                     <Filter className="w-4 h-4 mr-2" />
                     Filters
@@ -332,7 +353,7 @@ export default function CategoryPage() {
                 </SheetContent>
               </Sheet>
 
-              {/* Sort */}
+              {/* Sort By Dropdown */}
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-48 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                   <SelectValue placeholder="Sort By" />
@@ -348,8 +369,8 @@ export default function CategoryPage() {
             </div>
           </div>
 
-          {/* Subcategories */}
-          {category.subcategories?.length > 0 && (
+          {/* Subcategories (if available) */}
+          {category.subcategories && category.subcategories.length > 0 && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-4">Shop by Subcategory</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -370,70 +391,78 @@ export default function CategoryPage() {
             </div>
           )}
 
-          {/* Products Grid */}
+          {/* Products Grid - Made Scrollable */}
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-500 text-lg">Loading products...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredProducts.map((item) => (
-                <Card
-                  key={item.productId}
-                  className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
-                >
-                  <Link href={`/product/${item.productId}`} className="block">
-                    <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
-                      {item.productImageUris && item.productImageUris.length > 0 ? (
-                        <>
-                          <Image
-                            src={item.productImageUris[imageIndices[item.productId] || 0]}
-                            alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
-                            fill
-                            className="object-contain transition-transform duration-300 hover:scale-105"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
-                            }}
-                          />
-                          {item.productImageUris.length > 1 && (
-                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-                              {imageIndices[item.productId] + 1} / {item.productImageUris.length}
-                            </div>
+            <>
+              {filteredProducts.length > 0 ? (
+                // Added max-h-[calc(100vh-250px)] and overflow-y-auto for scrollability
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-4 custom-scrollbar">
+                  {filteredProducts.map((item) => (
+                    <Card
+                      key={item.productId}
+                      className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
+                    >
+                      <Link href={`/product/${item.productId}`} className="block">
+                        <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
+                          {item.productImageUris && item.productImageUris.length > 0 ? (
+                            <>
+                              <Image
+                                src={item.productImageUris[imageIndices[item.productId] || 0]}
+                                alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                                fill
+                                className="object-contain transition-transform duration-300 hover:scale-105"
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
+                                }}
+                              />
+                              {item.productImageUris.length > 1 && (
+                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                                  {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <Image
+                              src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
+                              alt="No Image Available"
+                              fill
+                              className="object-contain transition-transform duration-300 hover:scale-105"
+                            />
                           )}
-                        </>
-                      ) : (
-                        <Image
-                          src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
-                          alt="No Image Available"
-                          fill
-                          className="object-contain transition-transform duration-300 hover:scale-105"
-                        />
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">
-                        {item.productTitle}
-                      </h2>
-                      <p className="text-sm text-gray-600">{item.productCategory}</p>
-                      <p className="text-sm text-gray-600">Available: {item.productStock}</p>
-                      <div className="mt-2 text-xl font-bold text-blue-900">
-                        Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
-                        <span className="text-sm text-gray-500">per {item.productUnit}</span>
-                      </div>
-                    </CardContent>
-                  </Link>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* No products message */}
-          {!isLoading && products.length === 0 && (
-            <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2 text-gray-700">No products available</h3>
-              <p className="text-gray-600">We're working on adding products to this category.</p>
-            </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">
+                            {item.productTitle}
+                          </h2>
+                          <p className="text-sm text-gray-600">{item.productCategory}</p>
+                          <p className="text-sm text-gray-600">Available: {item.productStock}</p>
+                          <div className="mt-2 text-xl font-bold text-blue-900">
+                            Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
+                            <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                          </div>
+                        </CardContent>
+                      </Link>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                // Message for when no products match current filters
+                !isLoading && products.length > 0 && (
+                  <div className="text-center py-12">
+                    <h3 className="text-xl font-semibold mb-2 text-gray-700">No products match your filters</h3>
+                    <p className="text-gray-600">Try adjusting your search or price range.</p>
+                    <Button onClick={clearFilters} className="mt-4 rounded-lg bg-blue-600 hover:bg-blue-700">
+                      Reset Filters
+                    </Button>
+                  </div>
+                )
+              )}
+            </>
           )}
         </div>
       </div>

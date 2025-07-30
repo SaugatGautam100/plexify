@@ -1,230 +1,280 @@
-'use client';
+// CheckoutPageDesign.tsx
+import React from 'react';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { CreditCard, MapPin, Package } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Separator } from '@/components/ui/separator';
-import { useCart } from '@/contexts/cart-context';
-import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { useToast } from '@/hooks/use-toast';
+// This component is purely for visual design demonstration
+// It does NOT include any interactive JavaScript logic, state, or API calls.
+// It assumes Tailwind CSS is configured in your project.
 
-export default function CheckoutPage() {
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { items, getTotal, clearCart } = useCart();
-  const { user, loading } = useFirebaseAuth();
-  const { toast } = useToast();
-  const router = useRouter();
+export default function CheckoutPageDesign() {
+  // Hardcoded data for visual representation
+  const items = [
+    {
+      id: 'prod1',
+      product: {
+        id: 'p1',
+        name: 'High-Performance Wireless Headphones',
+        price: 79.99,
+        image: 'https://via.placeholder.com/150/F0F0F0/808080?text=Headphones',
+      },
+      quantity: 1,
+    },
+    {
+      id: 'prod2',
+      product: {
+        id: 'p2',
+        name: 'Ergonomic Mechanical Keyboard',
+        price: 120.00,
+        image: 'https://via.placeholder.com/150/F0F0F0/808080?text=Keyboard',
+      },
+      quantity: 1,
+    },
+    {
+      id: 'prod3',
+      product: {
+        id: 'p3',
+        name: 'Ultra-Wide Gaming Monitor',
+        price: 349.00,
+        image: 'https://via.placeholder.com/150/F0F0F0/808080?text=Monitor',
+      },
+      quantity: 1,
+    },
+  ];
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login?returnUrl=/checkout');
-    }
-  }, [user, loading, router]);
-
-  const total = getTotal();
-  const shipping = total > 50 ? 0 : 10;
-  const tax = total * 0.08;
-  const finalTotal = total + shipping + tax;
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null; // Will redirect
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-
-    try {
-      const formData = new FormData(e.target as HTMLFormElement);
-      
-      const orderData = {
-        items: items.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity
-        })),
-        paymentMethod: paymentMethod === 'card' ? 'Credit Card' : 'PayPal',
-        shippingAddress: {
-          firstName: formData.get('firstName') as string,
-          lastName: formData.get('lastName') as string,
-          address: formData.get('address') as string,
-          city: formData.get('city') as string,
-          state: formData.get('state') as string,
-          zipCode: formData.get('zipCode') as string,
-        }
-      };
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        toast({
-          title: 'Order placed successfully!',
-          description: `Order ${result.order.orderNumber} has been created.`,
-        });
-        clearCart();
-        router.push('/profile/orders');
-      } else {
-        toast({
-          title: 'Order failed',
-          description: result.message || 'Failed to place order. Please try again.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  if (items.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto text-center">
-          <h1 className="text-2xl font-bold mb-4">Your cart is empty</h1>
-          <p className="text-gray-600 mb-8">Add some items to your cart before checking out.</p>
-          <button onClick={() => router.push('/products')} className="bg-blue-600 text-white px-6 py-2 rounded-lg">
-            Continue Shopping
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Hardcoded calculations for display
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const shipping = subtotal > 200 ? 0 : 15; // Example: Free shipping over $200, otherwise $15
+  const taxRate = 0.08; // 8% tax
+  const tax = subtotal * taxRate;
+  const finalTotal = subtotal + shipping + tax;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
-      <form onSubmit={handleSubmit}>
+      {/* Form wrapper (no <form> tag to avoid default browser submission) */}
+      <div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Checkout Form */}
+          {/* Checkout Form Section */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Shipping Address */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
+            {/* Shipping Address Card (simulated Shadcn Card) */}
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+              <div className="flex flex-col space-y-1.5 p-6 border-b">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
+                  {/* MapPin Icon (SVG equivalent from Lucide React) */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
                   Shipping Address
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" name="firstName" required />
+                    <label htmlFor="firstName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      First Name
+                    </label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      defaultValue="Jane"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" name="lastName" required />
+                    <label htmlFor="lastName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      defaultValue="Doe"
+                    />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="address">Address</Label>
-                  <Input id="address" name="address" required />
+                  <label htmlFor="address" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                    Address
+                  </label>
+                  <input
+                    id="address"
+                    name="address"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="text"
+                    defaultValue="456 Commerce Drive"
+                  />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" name="city" required />
+                    <label htmlFor="city" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      City
+                    </label>
+                    <input
+                      id="city"
+                      name="city"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      defaultValue="Lalitpur"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="state">State</Label>
-                    <Input id="state" name="state" required />
+                    <label htmlFor="state" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      State
+                    </label>
+                    <input
+                      id="state"
+                      name="state"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      defaultValue="Bagmati Province"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="zipCode">ZIP Code</Label>
-                    <Input id="zipCode" name="zipCode" required />
+                    <label htmlFor="zipCode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      ZIP Code
+                    </label>
+                    <input
+                      id="zipCode"
+                      name="zipCode"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      defaultValue="44700"
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Payment Method */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5" />
+            {/* Payment Method Card (simulated Shadcn Card) */}
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+              <div className="flex flex-col space-y-1.5 p-6 border-b">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
+                  {/* CreditCard Icon (SVG equivalent from Lucide React) */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="20" height="14" x="2" y="5" rx="2" />
+                    <line x1="2" x2="22" y1="10" y2="10" />
+                  </svg>
                   Payment Method
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card">Credit/Debit Card</Label>
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                {/* RadioGroup (simulated without JS) */}
+                <div className="grid gap-2"> {/* This simulates RadioGroup's outer div */}
+                  <div className="flex items-center space-x-2"> {/* RadioGroupItem */}
+                    <input type="radio" id="card" name="paymentMethod" value="card" defaultChecked className="h-4 w-4 shrink-0 rounded-full border border-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+                    <label htmlFor="card" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Credit/Debit Card
+                    </label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="paypal" id="paypal" />
-                    <Label htmlFor="paypal">PayPal</Label>
+                  <div className="flex items-center space-x-2"> {/* RadioGroupItem */}
+                    <input type="radio" id="paypal" name="paymentMethod" value="paypal" className="h-4 w-4 shrink-0 rounded-full border border-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+                    <label htmlFor="paypal" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      PayPal
+                    </label>
                   </div>
-                </RadioGroup>
+                </div>
 
-                {paymentMethod === 'card' && (
-                  <div className="space-y-4">
+                {/* Card Details (always visible for static design, as if 'card' is selected) */}
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="cardNumber" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                      Card Number
+                    </label>
+                    <input
+                      id="cardNumber"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="text"
+                      placeholder="1234 5678 9012 3456"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <Input id="cardNumber" placeholder="1234 5678 9012 3456" required />
+                      <label htmlFor="expiryDate" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                        Expiry Date
+                      </label>
+                      <input
+                        id="expiryDate"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="text"
+                        placeholder="MM/YY"
+                        required
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="expiryDate">Expiry Date</Label>
-                        <Input id="expiryDate" placeholder="MM/YY" required />
-                      </div>
-                      <div>
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input id="cvv" placeholder="123" required />
-                      </div>
+                    <div>
+                      <label htmlFor="cvv" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 block mb-1">
+                        CVV
+                      </label>
+                      <input
+                        id="cvv"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="text"
+                        placeholder="123"
+                        required
+                      />
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary Section */}
           <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5" />
+            {/* Order Summary Card (simulated Shadcn Card) */}
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+              <div className="flex flex-col space-y-1.5 p-6 border-b">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
+                  {/* Package Icon (SVG equivalent from Lucide React) */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m7.5 4.27 9 5.15" />
+                    <path d="M21 8.03v8.01c0 .7-.37 1.34-.98 1.7L13 21.7c-.63.38-1.41.38-2.04 0L3.98 17.74c-.6-.36-.97-1-.97-1.7V8.03c0-.7.37-1.34.98-1.7L11 2.3c.63-.38 1.41-.38 2.04 0Z" />
+                    <path d="m3 8-7 4.03-2.04 1.17c-.63.38-1.41.38-2.04 0L3.98 17.74c-.6-.36-.97-1-.97-1.7V8.03c0-.7.37-1.34.98-1.7L11 2.3c.63-.38 1.41-.38 2.04 0Z" />
+                  </svg>
                   Order Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
                 {/* Order Items */}
                 <div className="space-y-3">
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <img 
-                          src={item.product.image} 
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img
+                          src={item.product.image}
                           alt={item.product.name}
                           className="w-full h-full object-cover rounded-lg"
                         />
@@ -240,13 +290,14 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <Separator />
+                {/* Separator (simulated Shadcn Separator) */}
+                <div className="shrink-0 bg-border h-[1px] w-full" />
 
                 {/* Pricing */}
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Shipping</span>
@@ -256,21 +307,26 @@ export default function CheckoutPage() {
                     <span>Tax</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
-                  <Separator />
+                  {/* Separator (simulated Shadcn Separator) */}
+                  <div className="shrink-0 bg-border h-[1px] w-full" />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
                     <span>${finalTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isProcessing}>
-                  {isProcessing ? 'Processing...' : `Place Order - $${finalTotal.toFixed(2)}`}
-                </Button>
-              </CardContent>
-            </Card>
+                {/* Place Order Button (simulated Shadcn Button) */}
+                <button
+                  type="button" // Use type="button" to prevent default form submission if wrapped in a <form>
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 w-full"
+                >
+                  Place Order - ${finalTotal.toFixed(2)}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

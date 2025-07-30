@@ -169,7 +169,7 @@ export const products: Product[] = [
     adminUid: "suPbGytrYMSTPyPaPowTK2uQ3gi1",
     itemCount: 0,
     productCategory: "Dry Fruits Masala & Oil",
-    productId: "3IbNeqWT5vq9Nd220eVtLx5qU",
+    productId: "Zq0Dit4xBl1JEKUXOeNc53S1j",
     productImageUris: [
 "https://firebasestorage.googleapis.com/v0/b/plexify-6469a.firebasestorage.app/o/suPbGytrYMSTPyPaPowTK2uQ3gi1%2Fimages%2F411745b3-c054-42a2-bf7f-33c9603227a6?alt=media&token=5fb8640d-026b-4ce7-af40-fde2aaf0de51",
 "https://firebasestorage.googleapis.com/v0/b/plexify-6469a.firebasestorage.app/o/suPbGytrYMSTPyPaPowTK2uQ3gi1%2Fimages%2F917abe7a-23f7-4514-ad14-dfccf260ea77?alt=media&token=12ade941-637a-4cce-bcfc-9c3452561af0",
@@ -188,7 +188,7 @@ export const products: Product[] = [
     adminUid: "suPbGytrYMSTPyPaPowTK2uQ3gi1",
     itemCount: 0,
     productCategory: "Dairy & Breakfast",
-    productId: "5D2bAaMhonHSVnLnVncB05mbR",
+    productId: "WExzVbdE7X5UYkM763k9VraO5",
     productImageUris: [
       'https://firebasestorage.googleapis.com/v0/b/plexify-6469a.firebasestorage.app/o/suPbGytrYMSTPyPaPowTK2uQ3gi1%2Fimages%2F204a60dc-3c70-460c-ac47-ea6426495397?alt=media&token=b9ff352b-97f0-4faa-a256-ee3f3a112f87'
     ],
@@ -204,7 +204,7 @@ export const products: Product[] = [
     adminUid: "suPbGytrYMSTPyPaPowTK2uQ3gi1",
     itemCount: 0,
     productCategory: "Atta Rice & Dal",
-    productId: "hngwkJj7ic3msLeLASP5IUyp3",
+    productId: "2JDKrAHHELFI3L5thBICth4RC",
     productImageUris: [
       'https://firebasestorage.googleapis.com/v0/b/plexify-6469a.firebasestorage.app/o/suPbGytrYMSTPyPaPowTK2uQ3gi1%2Fimages%2F7f582519-69e1-4830-8682-8bf08ccb50ea?alt=media&token=5161bdf3-4089-4eb8-bbf1-d3e616c5905c'
     ],
@@ -220,7 +220,7 @@ export const products: Product[] = [
     adminUid: "suPbGytrYMSTPyPaPowTK2uQ3gi1",
     itemCount: 0,
     productCategory: "Atta Rice & Dal",
-    productId: "uew9EPgYsDe9q8rBw8Cv9Jw8j",
+    productId: "yK3nwUFsF2UcTkbUDDl4ROYLI",
     productImageUris: [
       'https://firebasestorage.googleapis.com/v0/b/plexify-6469a.firebasestorage.app/o/suPbGytrYMSTPyPaPowTK2uQ3gi1%2Fimages%2F8f0dbbac-666a-43b0-9574-449dbdb1a33f?alt=media&token=2ca3984e-f590-4cb1-9ee0-851f517061a6'
     ],
