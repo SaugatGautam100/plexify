@@ -15,68 +15,66 @@ export interface Product {
 
 export interface CartItem {
   id: string;
-  product: Product;
-  quantity: number;
-  selectedVariant?: string;
+  productPrice: number;
+  productQuantity: number;
+  productTitle: string;
+  productImageUris?: string[];
+  productCategory: string;
+  productStock: number;
+  productUnit: string;
+  productType: string;
+  adminUid: string;
+  productRandomId?: string;
+  addedAt?: number;
+}
+
+export interface OrderTimestamp {
+  createdAt: number;
+  date: string;
+  time: string;
+  iso: string;
+}
+
+export interface OrderItem {
+  productId: string;
+  productTitle: string;
+  productPrice: number;
+  productQuantity: number;
+  productImages: string[];
+  productCategory: string;
+  productUnit: string;
+  productType: string;
+  adminUid: string;
+  productRandomId?: string;
+}
+
+export interface Order {
+  orderId: string;
+  userId: string;
+  userName: string;
+  userAddress: string;
+  userPhone: string;
+  userEmail: string;
+  orderNumber: string;
+  timestamp: OrderTimestamp;
+  createdAt: number;
+  paymentMethod: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  items: OrderItem[];
+  subtotal: number;
+  deliveryCharge: number;
+  finalTotal: number;
 }
 
 export interface User {
   id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  userType?: 'user' | 'seller';
+  UserName: string;
+  UserEmail: string;
+  UserPhone?: string;
+  UserAddress?: string;
+  UserType?: 'user' | 'seller';
   avatar?: string;
-  addresses: Address[];
-  orders: Order[];
-  wishlist: string[];
-  createdAt: string;
-  // Seller-specific fields (when userType is 'seller')
-  businessName?: string;
-  businessAddress?: string;
-  description?: string;
-  rating?: number;
-  totalSales?: number;
-  isVerified?: boolean;
-}
-
-export interface Seller {
-  id: string;
-  name: string;
-  email: string;
-  businessName: string;
-  businessAddress: string;
-  phone: string;
-  avatar?: string;
-  description?: string;
-  rating: number;
-  totalSales: number;
-  products: string[];
-  isVerified: boolean;
-  createdAt: string;
-}
-
-export interface Address {
-  id: string;
-  name: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  isDefault: boolean;
-}
-
-export interface Order {
-  id: string;
-  items: CartItem[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: Address;
-  paymentMethod: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number;
 }
 
 export interface Category {

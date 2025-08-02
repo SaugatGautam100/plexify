@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Package, Calendar, CreditCard } from 'lucide-react';
+import { Package, Calendar, CreditCard, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, onValue, off } from 'firebase/database';
+import Link from 'next/link';
 import app from '../../firebaseConfig';
 
 export default function OrdersPage() {
@@ -18,22 +19,6 @@ export default function OrdersPage() {
   // Fallback image URL
   const FALLBACK_IMAGE = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image';
 
-  // Your Firebase Storage bucket base URL (replace <your-bucket-name> with your actual bucket name)
-  const FIREBASE_STORAGE_BASE_URL = 'https://firebasestorage.googleapis.com/v0/b/<your-bucket-name>/o/';
-
-  // Function to construct full Firebase Storage URL if only a path is provided
-  const getFullImageUrl = (imagePath: string) => {
-    if (!imagePath) {
-      console.warn('Image path is empty or undefined');
-      return FALLBACK_IMAGE;
-    }
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    const encodedPath = encodeURIComponent(imagePath);
-    return `${FIREBASE_STORAGE_BASE_URL}${encodedPath}?alt=media`;
-  };
-
   // Handle image load errors
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     console.warn('Image failed to load:', e.currentTarget.src);
@@ -41,9 +26,7 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
     if (!user) {
       setIsLoading(false);
@@ -64,36 +47,18 @@ export default function OrdersPage() {
         if (snapshot.exists()) {
           const ordersData = snapshot.val();
           const fetchedOrders = Object.keys(ordersData)
-            .map((key) => {
-              const order = {
-                id: key,
-                ...ordersData[key],
-                // Transform items to ensure productImages is an array
-                items: ordersData[key].items?.map((item: any) => ({
-                  ...item,
-                  productImages: item.productImages
-                    ? item.productImages.map((img: string) => getFullImageUrl(img))
-                    : item.productImage
-                    ? [getFullImageUrl(item.productImage)]
-                    : [FALLBACK_IMAGE],
-                })),
-              };
-              return order;
-            })
+            .map((key) => ({
+              id: key,
+              ...ordersData[key],
+            }))
             .sort((a, b) => b.createdAt - a.createdAt);
 
-          // Log productImages for debugging
-          fetchedOrders.forEach((order) => {
-            order.items?.forEach((item) => {
-              console.log(`Product Images for ${item.productTitle}:`, item.productImages);
-            });
-          });
-
           setOrders(fetchedOrders);
+          
           // Initialize image indices for each item
           const newImageIndices = fetchedOrders.reduce((acc: any, order: any) => {
-            order.items.forEach((item: any) => {
-              acc[item.productId] = 0;
+            order.items?.forEach((item: any) => {
+              acc[item.productRandomId] = 0;
             });
             return acc;
           }, {});
@@ -115,9 +80,7 @@ export default function OrdersPage() {
       }
     );
 
-    return () => {
-      off(userOrdersRef, 'value', unsubscribe);
-    };
+    return () => off(userOrdersRef, 'value', unsubscribe);
   }, [user, authLoading]);
 
   // Cycle through images every 1.5 seconds
@@ -129,8 +92,8 @@ export default function OrdersPage() {
           order.items?.forEach((item: any) => {
             const imageCount = item.productImages?.length || 1;
             if (imageCount > 1) {
-              newIndices[item.productId] =
-                (prev[item.productId] || 0) + 1 >= imageCount ? 0 : (prev[item.productId] || 0) + 1;
+              newIndices[item.productRandomId] =
+                (prev[item.productRandomId] || 0) + 1 >= imageCount ? 0 : (prev[item.productRandomId] || 0) + 1;
             }
           });
         });
@@ -176,7 +139,7 @@ export default function OrdersPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {orders.map((order) => (
+            {orders.map((order: any) => (
               <Card key={order.orderId}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -185,10 +148,14 @@ export default function OrdersPage() {
                         <Package className="w-5 h-5" />
                         Order #{order.orderNumber}
                       </CardTitle>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          {new Date(order.createdAt).toLocaleDateString()}
+                          {order.timestamp?.date || new Date(order.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {order.timestamp?.time || new Date(order.createdAt).toLocaleTimeString()}
                         </span>
                         <span className="flex items-center gap-1">
                           <CreditCard className="w-4 h-4" />
@@ -214,34 +181,60 @@ export default function OrdersPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-3">
-                      {order.items &&
-                        order.items.map((item: any) => (
-                          <div key={item.productId} className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                              <img
-                                src={item.productImages[imageIndices[item.productId] || 0]}
-                                alt={item.productTitle || 'Product Image'}
-                                className="w-full h-full object-cover rounded-lg"
-                                loading="lazy"
-                                onError={handleImageError}
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium">{item.productTitle}</h4>
-                              <p className="text-sm text-gray-600">
-                                Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)}
-                              </p>
-                            </div>
-                            <div className="font-medium">
-                              Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
+                      {order.items?.map((item: any) => (
+                        <div key={item.productRandomId} className="flex items-center gap-3">
+                          <Link
+                            href={`/product/${item.productRandomId}`}
+                            className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block"
+                            tabIndex={0}
+                            aria-label={`View details for ${item.productTitle}`}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <img
+                              src={item.productImages?.[imageIndices[item.productRandomId] || 0] || FALLBACK_IMAGE}
+                              alt={item.productTitle || 'Product Image'}
+                              className="w-full h-full object-cover rounded-lg"
+                              loading="lazy"
+                              onError={handleImageError}
+                            />
+                          </Link>
+                          <div className="flex-1">
+                            <Link
+                              href={`/product/${item.productRandomId}`}
+                              className="font-medium text-gray-900 hover:underline block"
+                              tabIndex={0}
+                              aria-label={`View details for ${item.productTitle}`}
+                              style={{ textDecoration: 'none' }}
+                            >
+                              {item.productTitle}
+                            </Link>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <p>Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)}</p>
+                              <p>Category: {item.productCategory}</p>
+                              <p>Unit: {item.productUnit}</p>
+                              <p>Type: {item.productType}</p>
                             </div>
                           </div>
-                        ))}
+                          <div className="font-medium">
+                            Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <div className="border-t pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold">Total</span>
-                        <span className="font-bold text-lg">Rs.{order.finalTotal.toFixed(2)}</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Subtotal</span>
+                          <span className="text-gray-900">Rs.{(order.finalTotal - 120).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Delivery Charge</span>
+                          <span className="text-gray-900">Rs.120.00</span>
+                        </div>
+                        <div className="flex justify-between items-center font-bold text-lg">
+                          <span>Total</span>
+                          <span>Rs.{order.finalTotal.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
