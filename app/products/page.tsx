@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Filter } from 'lucide-react';
@@ -11,31 +11,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import app from '../firebaseConfig';
 import { getDatabase, ref, get } from 'firebase/database';
-import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-/**
- * ProductsPage component displays a paginated list of products fetched from Firebase Realtime Database.
- * It shows 48 products per page with Next/Previous navigation, includes a responsive layout with desktop filters
- * and a mobile filter sheet, and handles loading and empty states. Each product card features an automatic image carousel.
- */
+// --- Types ---
+type Product = {
+  productId: string;
+  productTitle: string;
+  productCategory: string;
+  productPrice: number;
+  productStock: number;
+  productUnit: string;
+  productImageUris: string[];
+  productRating?: number;
+  addedAt?: number;
+};
+
+type ImageIndices = { [key: string]: number };
+
 export default function ProductsPage() {
   const searchParams = useSearchParams();
-  const [productArray, setProductArray] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [productArray, setProductArray] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [imageIndices, setImageIndices] = useState({});
+  const [imageIndices, setImageIndices] = useState<ImageIndices>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('featured');
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 48;
 
-  /**
-   * Fetches product data from Firebase Realtime Database.
-   */
+  // Fetches product data from Firebase Realtime Database.
   const fetchData = async () => {
     setIsLoading(true);
     setMessage('');
@@ -46,16 +53,18 @@ export default function ProductsPage() {
 
       if (snapshot.exists()) {
         const myData = snapshot.val();
-        const temporaryArray = Object.keys(myData).map((myFireId) => ({
+        const temporaryArray: Product[] = Object.keys(myData).map((myFireId) => ({
           ...myData[myFireId],
           productId: myFireId
         }));
         setProductArray(temporaryArray);
         setFilteredProducts(temporaryArray);
-        setImageIndices(temporaryArray.reduce((acc, item) => ({
-          ...acc,
-          [item.productId]: 0
-        }), {}));
+        setImageIndices(
+          temporaryArray.reduce((acc, item) => ({
+            ...acc,
+            [item.productId]: 0
+          }), {} as ImageIndices)
+        );
         setMessage('');
       } else {
         setMessage('No products found. Please add products to the database.');
@@ -72,18 +81,14 @@ export default function ProductsPage() {
     }
   };
 
-  /**
-   * Initializes search query from URL parameter and resets to first page.
-   */
+  // Initializes search query from URL parameter and resets to first page.
   useEffect(() => {
     const query = searchParams.get('search') || '';
     setSearchQuery(decodeURIComponent(query));
-    setCurrentPage(1); // Reset to first page on search query change
+    setCurrentPage(1);
   }, [searchParams]);
 
-  /**
-   * Applies filters and sorting to the products, resetting to first page on filter change.
-   */
+  // Applies filters and sorting to the products, resetting to first page on filter change.
   useEffect(() => {
     let result = [...productArray];
 
@@ -131,33 +136,31 @@ export default function ProductsPage() {
     }
 
     setFilteredProducts(result);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, [productArray, searchQuery, categoryFilter, sortBy, priceRange]);
 
-  /**
-   * Clears all filters and resets to default state, preserving URL search query.
-   */
+  // Clears all filters and resets to default state, preserving URL search query.
   const clearFilters = () => {
     setCategoryFilter('all');
     setSortBy('featured');
     setPriceRange({ min: '', max: '' });
-    // Only clear searchQuery if no URL search parameter
     if (!searchParams.get('search')) {
       setSearchQuery('');
     }
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   };
 
   // Fetch products on mount
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line
   }, []);
 
   // Automatic carousel cycling
   useEffect(() => {
     const interval = setInterval(() => {
       setImageIndices((prev) => {
-        const newIndices = { ...prev };
+        const newIndices: ImageIndices = { ...prev };
         productArray.forEach((item) => {
           const imageCount = item.productImageUris?.length || 1;
           if (imageCount > 1) {
@@ -188,7 +191,7 @@ export default function ProductsPage() {
     }
   };
 
-  const uniqueCategories = ['all', ...new Set(productArray.map((item) => item.productCategory))];
+  const uniqueCategories = ['all', ...Array.from(new Set(productArray.map((item) => item.productCategory)))];
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
@@ -391,9 +394,8 @@ export default function ProductsPage() {
                                   alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
                                   fill
                                   className="object-contain transition-transform duration-300 hover:scale-105"
-                                  onError={(e) => {
-                                    e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
-                                  }}
+                                  sizes="100vw"
+                                  style={{ objectFit: 'contain' }}
                                 />
                                 {item.productImageUris.length > 1 && (
                                   <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
@@ -407,6 +409,8 @@ export default function ProductsPage() {
                                 alt="No Image Available"
                                 fill
                                 className="object-contain transition-transform duration-300 hover:scale-105"
+                                sizes="100vw"
+                                style={{ objectFit: 'contain' }}
                               />
                             )}
                           </div>
