@@ -8,42 +8,55 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { categories } from '@/lib/mock-data'; // Assuming you have this mock data for categories
+import { categories } from '@/lib/mock-data'; // Your mock data
 import { getDatabase, ref, get } from 'firebase/database';
-import app from '../../../app/firebaseConfig'; // Adjust the path if necessary
+import app from '../../../app/firebaseConfig'; // Adjust path if needed
 import Link from 'next/link';
 import Image from 'next/image';
 
-/**
- * CategoryPage component displays products for a specific category identified by the slug.
- * Includes search, price range, and sorting filters, with a responsive layout.
- * Integrates with Firebase for product data, handles URL search parameters, and matches product design from products.tsx.
- */
+// --- Types ---
+type Product = {
+  productId: string;
+  productTitle: string;
+  productCategory: string;
+  productPrice: number;
+  productStock: number;
+  productUnit: string;
+  productImageUris: string[];
+  productRating?: number;
+  addedAt?: number;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  description?: string;
+  subcategories?: { id: string; name: string; description?: string }[];
+};
+
 export default function CategoryPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  // Ensure categorySlug is always a string and decoded
-  const categorySlug = Array.isArray(params.slug) ? params.slug[0] : (params.slug || '');
+  const categorySlug = Array.isArray(params.slug) ? params.slug[0] : (params.slug as string) || '';
 
-  const [products, setProducts] = useState<any[]>([]); // Stores all products for the category
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]); // Stores products after applying filters/sort
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('featured');
-  const [showFilters, setShowFilters] = useState(false); // State for mobile sheet visibility
+  const [showFilters, setShowFilters] = useState(false);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
 
   const minInputRef = useRef<HTMLInputElement>(null);
   const maxInputRef = useRef<HTMLInputElement>(null);
 
-  // Find the category from mock data based on the slug
-  const category = categories.find((cat) => cat.slug === categorySlug);
+  const category: Category | undefined = categories.find((cat: Category) => cat.slug === categorySlug);
 
-  /**
-   * Fetches products for the specific category from Firebase Realtime Database.
-   */
+  // Fetch products for the specific category from Firebase
   const fetchProducts = useCallback(async () => {
     if (!category) {
       setIsLoading(false);
@@ -62,21 +75,20 @@ export default function CategoryPage() {
 
       if (snapshot.exists()) {
         const allProducts = snapshot.val();
-        const categoryProducts = Object.keys(allProducts)
+        const categoryProducts: Product[] = Object.keys(allProducts)
           .map((key) => ({
             productId: key,
             ...allProducts[key],
           }))
-          // Filter products to include only those matching the current category's name
-          .filter((product) => product.productCategory === category.name);
+          .filter((product: Product) => product.productCategory === category.name);
 
-        setProducts(categoryProducts); // Set the base products for the category
-        setFilteredProducts(categoryProducts); // Initialize filtered products with all category products
+        setProducts(categoryProducts);
+        setFilteredProducts(categoryProducts);
         setImageIndices(
           categoryProducts.reduce((acc, item) => ({
             ...acc,
             [item.productId]: 0,
-          }), {})
+          }), {} as { [key: string]: number })
         );
         if (categoryProducts.length === 0) {
           setMessage(`No products found in "${category.name}" category.`);
@@ -95,26 +107,20 @@ export default function CategoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [category, categorySlug]); // Include categorySlug in dependencies
+  }, [category, categorySlug]);
 
-  /**
-   * Initializes search query from URL parameter.
-   */
+  // Initialize search query from URL parameter
   useEffect(() => {
     const query = searchParams.get('search') || '';
     setSearchQuery(decodeURIComponent(query));
   }, [searchParams]);
 
-  /**
-   * Fetches products on mount or when category changes.
-   */
+  // Fetch products on mount or when category changes
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  /**
-   * Automatic carousel cycling for product images.
-   */
+  // Automatic carousel cycling for product images
   useEffect(() => {
     const interval = setInterval(() => {
       setImageIndices((prev) => {
@@ -131,11 +137,9 @@ export default function CategoryPage() {
     return () => clearInterval(interval);
   }, [products]);
 
-  /**
-   * Applies filters and sorting to the products.
-   */
+  // Apply filters and sorting
   useEffect(() => {
-    let result = [...products]; // Start with the category-specific products
+    let result = [...products];
 
     // Search filter
     if (searchQuery.trim()) {
@@ -172,46 +176,41 @@ export default function CategoryPage() {
         result.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
         break;
       default:
-        // Default sort (e.g., 'featured' or by Firebase key if no other sort is applied)
         break;
     }
 
     setFilteredProducts(result);
   }, [products, searchQuery, priceRange, sortBy]);
 
-  /**
-   * Handles price range input changes, allowing empty strings and partial inputs.
-   */
-  const handlePriceChange = (field: 'min' | 'max', value: string, inputRef: React.RefObject<HTMLInputElement>) => {
-    // Allow empty string, or if it's a number (including decimal point only)
+  // Handle price range input changes
+  const handlePriceChange = (
+    field: 'min' | 'max',
+    value: string,
+    inputRef: React.RefObject<HTMLInputElement>
+  ) => {
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setPriceRange((prev) => ({ ...prev, [field]: value }));
-      // This timeout ensures the state updates before attempting to focus
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          // To maintain cursor position, especially important for mobile keyboards
           inputRef.current.setSelectionRange(value.length, value.length);
         }
       }, 0);
     }
   };
 
-  /**
-   * Clears all filters, preserving URL search query.
-   */
+  // Clear all filters
   const clearFilters = () => {
     setPriceRange({ min: '', max: '' });
     setSortBy('featured');
     if (!searchParams.get('search')) {
       setSearchQuery('');
     }
-    // Reset filteredProducts to the original category-specific products
     setFilteredProducts(products);
-    setShowFilters(false); // Close mobile filter sheet after clearing
+    setShowFilters(false);
   };
 
-  // If category not found from mock data
+  // If category not found
   if (!category) {
     return (
       <div className="container mx-auto px-4 py-16 text-center font-inter">
@@ -224,6 +223,7 @@ export default function CategoryPage() {
     );
   }
 
+  // Filter content component
   const FilterContent = () => (
     <div className="space-y-6">
       {/* Search Input */}
@@ -243,7 +243,7 @@ export default function CategoryPage() {
         <h3 className="font-semibold mb-3 text-gray-700">Price Range</h3>
         <div className="flex items-center space-x-2">
           <Input
-            type="text" // Use text to allow partial number input like "12."
+            type="text"
             inputMode="numeric"
             pattern="[0-9]*\.?[0-9]*"
             placeholder="Min"
@@ -254,7 +254,7 @@ export default function CategoryPage() {
           />
           <span className="text-gray-500">-</span>
           <Input
-            type="text" // Use text to allow partial number input like "12."
+            type="text"
             inputMode="numeric"
             pattern="[0-9]*\.?[0-9]*"
             placeholder="Max"
@@ -282,12 +282,13 @@ export default function CategoryPage() {
       {/* Category Header */}
       <div className="mb-8">
         <div className="aspect-[3/1] relative bg-gray-100 rounded-lg overflow-hidden mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={category.image || 'https://placehold.co/1200x400/E0E0E0/808080?text=Category+Image'}
             alt={category.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.currentTarget.src = 'https://placehold.co/1200x400/E0E0E0/808080?text=Category+Image';
+              (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/1200x400/E0E0E0/808080?text=Category+Image';
             }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
@@ -391,7 +392,7 @@ export default function CategoryPage() {
             </div>
           )}
 
-          {/* Products Grid - Made Scrollable */}
+          {/* Products Grid */}
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -400,7 +401,6 @@ export default function CategoryPage() {
           ) : (
             <>
               {filteredProducts.length > 0 ? (
-                // Added max-h-[calc(100vh-250px)] and overflow-y-auto for scrollability
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-4 custom-scrollbar">
                   {filteredProducts.map((item) => (
                     <Card
@@ -416,9 +416,9 @@ export default function CategoryPage() {
                                 alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
                                 fill
                                 className="object-contain transition-transform duration-300 hover:scale-105"
-                                onError={(e) => {
-                                  e.currentTarget.src = 'https://placehold.co/600x400/E0E0E0/808080?text=Image+Error';
-                                }}
+                                onError={() => {}}
+                                sizes="100vw"
+                                style={{ objectFit: 'contain' }}
                               />
                               {item.productImageUris.length > 1 && (
                                 <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
@@ -432,6 +432,8 @@ export default function CategoryPage() {
                               alt="No Image Available"
                               fill
                               className="object-contain transition-transform duration-300 hover:scale-105"
+                              sizes="100vw"
+                              style={{ objectFit: 'contain' }}
                             />
                           )}
                         </div>
@@ -451,7 +453,6 @@ export default function CategoryPage() {
                   ))}
                 </div>
               ) : (
-                // Message for when no products match current filters
                 !isLoading && products.length > 0 && (
                   <div className="text-center py-12">
                     <h3 className="text-xl font-semibold mb-2 text-gray-700">No products match your filters</h3>
