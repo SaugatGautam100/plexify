@@ -10,24 +10,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import CartItem from '@/components/cart/cart-item';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { getDatabase, ref, get, remove, push, set } from 'firebase/database';
+import { getDatabase, ref, get, remove, push, set, update } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 import app from '@/app/firebaseConfig';
 
 export default function CartPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
-  const [items, setItems] = useState<Array<{ id: string; productPrice: number; productQuantity: number; productTitle: string; productImageUris?: string[]; productCategory: string; productStock: number; productUnit: string; productType: string; adminUid: string; productRandomId?: string }>>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [cartLoading, setCartLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<{ id: string; productTitle: string } | null>(null);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [updatingQty, setUpdatingQty] = useState<string | null>(null);
 
   const fetchCartItems = async () => {
     if (!user) return;
-
     setCartLoading(true);
     setMessage('');
     try {
@@ -51,7 +51,6 @@ export default function CartPage() {
         setImageIndices({});
       }
     } catch (error: any) {
-      console.error("Error fetching cart items:", error.message, error.code);
       setItems([]);
       setImageIndices({});
       setMessage(`Failed to load cart: ${error.message}`);
@@ -60,13 +59,11 @@ export default function CartPage() {
     }
   };
 
-  const getTotal = () => {
-    return items.reduce((sum, item) => sum + (item.productPrice * item.productQuantity || 0), 0);
-  };
+  const getTotal = () => items.reduce((sum, item) => sum + (item.productPrice * item.productQuantity || 0), 0);
+  const getTotalQuantity = () => items.reduce((sum, item) => sum + (item.productQuantity || 0), 0);
 
   const clearCart = async () => {
     if (!user) return;
-
     try {
       const db = getDatabase(app);
       const cartRef = ref(db, `AllUsers/Users/${user.uid}/UserCartItems`);
@@ -75,7 +72,6 @@ export default function CartPage() {
       setImageIndices({});
       setMessage('Cart cleared successfully!');
     } catch (error: any) {
-      console.error("Error clearing cart:", error.message, error.code);
       setMessage(`Failed to clear cart: ${error.message}`);
     }
   };
@@ -85,7 +81,6 @@ export default function CartPage() {
       setMessage('Please log in to remove items from your cart.');
       return;
     }
-
     try {
       const db = getDatabase(app);
       const itemRef = ref(db, `AllUsers/Users/${user.uid}/UserCartItems/${id}`);
@@ -99,17 +94,11 @@ export default function CartPage() {
       setMessage(`"${productTitle}" removed from cart successfully!`);
       await fetchCartItems();
     } catch (error: any) {
-      console.error("Error removing item from cart:", error.message, error.code);
       setMessage(`Failed to remove "${productTitle}" from cart: ${error.message}`);
     }
   };
 
   const openConfirmDialog = (id: string, productTitle: string) => {
-    if (!id || !productTitle) {
-      console.error("Invalid id or productTitle:", { id, productTitle });
-      setMessage("Unable to remove item: Invalid data.");
-      return;
-    }
     setDialogItem({ id, productTitle });
     setDialogOpen(true);
   };
@@ -122,9 +111,7 @@ export default function CartPage() {
     setDialogItem(null);
   };
 
-  const handleProceedToCheckout = () => {
-    setCheckoutDialogOpen(true);
-  };
+  const handleProceedToCheckout = () => setCheckoutDialogOpen(true);
 
   const saveNotificationToFirebase = async (userId: string, title: string, message: string) => {
     try {
@@ -141,15 +128,35 @@ export default function CartPage() {
         new Notification(title, { body: message, icon: '/favicon.ico' });
       }
     } catch (error: any) {
-      console.error("Error saving notification to Firebase:", error);
       setMessage(`Error saving notification: ${error.message}`);
+    }
+  };
+
+  // --- QUANTITY HANDLER ---
+  const handleQuantityChange = async (id: string, newQty: number) => {
+    if (!user) return;
+    if (newQty < 1) return;
+    setUpdatingQty(id);
+    try {
+      const db = getDatabase(app);
+      const itemRef = ref(db, `AllUsers/Users/${user.uid}/UserCartItems/${id}`);
+      await update(itemRef, { productQuantity: newQty });
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, productQuantity: newQty } : item
+        )
+      );
+      setMessage('');
+    } catch (error: any) {
+      setMessage(`Failed to update quantity: ${error.message}`);
+    } finally {
+      setUpdatingQty(null);
     }
   };
 
   const handleConfirmCheckout = async () => {
     setCheckoutDialogOpen(false);
     setMessage('');
-
     if (!user) {
       setMessage("You must be logged in to place an order.");
       return;
@@ -158,24 +165,20 @@ export default function CartPage() {
       setMessage("Your cart is empty. Please add items before checking out.");
       return;
     }
-
     try {
       const db = getDatabase(app);
       const auth = getAuth(app);
       const currentUser = auth.currentUser;
-
       if (!currentUser) {
         setMessage("Authentication error. Please log in again.");
         return;
       }
-
       const userProfileRef = ref(db, `AllUsers/Users/${currentUser.uid}`);
       const userProfileSnapshot = await get(userProfileRef);
       let userName = '';
       let userAddress = '';
       let userPhone = '';
       let userEmail = '';
-
       if (userProfileSnapshot.exists()) {
         const profileData = userProfileSnapshot.val();
         userName = profileData.UserName || '';
@@ -184,9 +187,14 @@ export default function CartPage() {
         userEmail = profileData.UserEmail || '';
       }
 
+      // --- DELIVERY CHARGE LOGIC ---
+      const subtotal = getTotal();
+      const totalQuantity = getTotalQuantity();
+      const deliveryCharge = totalQuantity * 120;
+      const finalTotal = subtotal + deliveryCharge;
+
       const orderRefUser = ref(db, `AllUsers/Users/${currentUser.uid}/UserOrders`);
       const orderRefAdmin = ref(db, `Admins/AllUserOrders`);
-
       const newOrderRef = push(orderRefUser);
       const orderId = newOrderRef.key;
 
@@ -213,20 +221,19 @@ export default function CartPage() {
           adminUid: item.adminUid,
           productRandomId: item.productRandomId || null,
         })),
-        subtotal: getTotal(),
-        shipping: total > 50 ? 0 : 10,
-        tax: total * 0.08,
+        subtotal: subtotal,
+        shipping: deliveryCharge, // renamed in UI below
         finalTotal: finalTotal,
       };
 
       await set(newOrderRef, orderData);
       await set(ref(db, `Admins/AllUserOrders/${orderId}`), orderData);
 
-      const itemDetails = orderData.items.map(item => 
+      const itemDetails = orderData.items.map(item =>
         `- Title: ${item.productTitle}; Price: Rs.${item.productPrice.toFixed(2)}; Quantity: ${item.productQuantity}; Category: ${item.productCategory}; Unit: ${item.productUnit}; Type: ${item.productType}; Images: [${item.productImages.join(', ')}]`
       ).join('\n');
-      
-      const notificationMessage = `Dear ${userName},\nYour order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nShipping to: ${userAddress}\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nShipping: ${orderData.shipping === 0 ? 'Free' : `Rs.${orderData.shipping.toFixed(2)}`}\nTax: Rs.${orderData.tax.toFixed(2)}\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
+
+      const notificationMessage = `Dear ${userName},\nYour order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nShipping to: ${userAddress}\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nDelivery Charge: Rs.${orderData.shipping.toFixed(2)}\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
 
       await saveNotificationToFirebase(
         currentUser.uid,
@@ -239,7 +246,6 @@ export default function CartPage() {
       setMessage("Order placed successfully! Redirecting to your orders...");
       router.push('/profile/orders');
     } catch (error: any) {
-      console.error("Error placing order:", error.message, error.code);
       setMessage(`Failed to place order: ${error.message}`);
     }
   };
@@ -265,14 +271,14 @@ export default function CartPage() {
         return newIndices;
       });
     }, 1500);
-
     return () => clearInterval(interval);
   }, [items]);
 
-  const total = getTotal();
-  const shipping = total > 50 ? 0 : 10;
-  const tax = total * 0.08;
-  const finalTotal = total + shipping + tax;
+  // --- ORDER SUMMARY CALC ---
+  const subtotal = getTotal();
+  const totalQuantity = getTotalQuantity();
+  const deliveryCharge = 120;
+  const finalTotal = subtotal + deliveryCharge;
 
   if (loading || cartLoading) {
     return (
@@ -285,9 +291,7 @@ export default function CartPage() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   if (items.length === 0) {
     return (
@@ -340,6 +344,8 @@ export default function CartPage() {
                     item={item}
                     onDelete={openConfirmDialog}
                     imageIndex={imageIndices[item.id] || 0}
+                    onQuantityChange={handleQuantityChange}
+                    updating={updatingQty === item.id}
                   />
                 ))}
               </div>
@@ -355,33 +361,21 @@ export default function CartPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between text-sm sm:text-base">
                 <span>Subtotal</span>
-                <span>Rs.{total.toFixed(2)}</span>
+                <span>Rs.{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
-                <span>Shipping</span>
-                <span>{shipping === 0 ? 'Free' : `Rs.${shipping.toFixed(2)}`}</span>
-              </div>
-              <div className="flex justify-between text-sm sm:text-base">
-                <span>Tax</span>
-                <span>Rs.{tax.toFixed(2)}</span>
+                <span>Delivery Charge</span>
+                <span>Rs.{deliveryCharge.toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-base sm:text-lg font-bold">
                 <span>Total</span>
                 <span>Rs.{finalTotal.toFixed(2)}</span>
               </div>
-
-              {shipping > 0 && (
-                <div className="text-xs sm:text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                  Add Rs.{(50 - total).toFixed(2)} more to get free shipping!
-                </div>
-              )}
-
               <Button className="w-full text-xs sm:text-sm" size="lg" onClick={handleProceedToCheckout}>
                 Proceed to Checkout
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-
               <Link href="/products">
                 <Button variant="outline" className="w-full text-xs sm:text-sm">
                   Continue Shopping
@@ -392,6 +386,7 @@ export default function CartPage() {
         </div>
       </div>
 
+      {/* Remove Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
         if (!open) setDialogItem(null);
@@ -426,6 +421,7 @@ export default function CartPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Checkout Dialog */}
       <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
         <DialogContent className="bg-white rounded-lg shadow-lg max-w-md p-6 font-inter">
           <DialogHeader>

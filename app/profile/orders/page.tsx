@@ -3,25 +3,64 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Calendar, CreditCard, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge, BadgeProps } from '@/components/ui/badge';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, onValue, off } from 'firebase/database';
 import Link from 'next/link';
-import app from '../../firebaseConfig';
+import app from '../../firebaseConfig'; // Adjust path if needed
+
+// --- Type Definitions for better code safety ---
+interface OrderItem {
+  productId: string;
+  productTitle: string;
+  productPrice: number;
+  productQuantity: number;
+  productImages: string[];
+  productCategory: string;
+  productUnit: string;
+  productType: string;
+}
+
+interface Order {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  createdAt: number;
+  paymentMethod: string;
+  status: 'pending' | 'received' | 'dispatched' | 'delivered' | 'cancelled';
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number; // This field holds the delivery charge
+  finalTotal: number;
+}
+
+// --- Helper function for status badges ---
+const getStatusBadgeVariant = (status: Order['status']): BadgeProps['variant'] => {
+  switch (status) {
+    case 'delivered':
+      return 'default'; // Green (by default in shadcn)
+    case 'dispatched':
+      return 'outline'; // Blue-ish
+    case 'received':
+      return 'secondary'; // Gray
+    case 'cancelled':
+      return 'destructive'; // Red
+    case 'pending':
+    default:
+      return 'secondary'; // Gray
+  }
+};
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
 
-  // Fallback image URL
   const FALLBACK_IMAGE = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image';
 
-  // Handle image load errors
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.warn('Image failed to load:', e.currentTarget.src);
     e.currentTarget.src = FALLBACK_IMAGE;
   };
 
@@ -53,20 +92,10 @@ export default function OrdersPage() {
             }))
             .sort((a, b) => b.createdAt - a.createdAt);
 
-          setOrders(fetchedOrders);
-          
-          // Initialize image indices for each item
-          const newImageIndices = fetchedOrders.reduce((acc: any, order: any) => {
-            order.items?.forEach((item: any) => {
-              acc[item.productRandomId] = 0;
-            });
-            return acc;
-          }, {});
-          setImageIndices(newImageIndices);
+          setOrders(fetchedOrders as Order[]);
           setMessage('');
         } else {
           setOrders([]);
-          setImageIndices({});
           setMessage('No orders found.');
         }
         setIsLoading(false);
@@ -75,7 +104,6 @@ export default function OrdersPage() {
         console.error('Error fetching orders:', error);
         setMessage(`Failed to load orders: ${error.message}`);
         setOrders([]);
-        setImageIndices({});
         setIsLoading(false);
       }
     );
@@ -83,17 +111,24 @@ export default function OrdersPage() {
     return () => off(userOrdersRef, 'value', unsubscribe);
   }, [user, authLoading]);
 
-  // Cycle through images every 1.5 seconds
   useEffect(() => {
+    const initialIndices: { [key: string]: number } = {};
+    orders.forEach(order => {
+      order.items?.forEach(item => {
+        initialIndices[order.id + item.productId] = 0;
+      });
+    });
+    setImageIndices(initialIndices);
+
     const interval = setInterval(() => {
-      setImageIndices((prev) => {
+      setImageIndices(prev => {
         const newIndices = { ...prev };
-        orders.forEach((order) => {
-          order.items?.forEach((item: any) => {
+        orders.forEach(order => {
+          order.items?.forEach(item => {
+            const key = order.id + item.productId;
             const imageCount = item.productImages?.length || 1;
             if (imageCount > 1) {
-              newIndices[item.productRandomId] =
-                (prev[item.productRandomId] || 0) + 1 >= imageCount ? 0 : (prev[item.productRandomId] || 0) + 1;
+              newIndices[key] = (prev[key] || 0) + 1 >= imageCount ? 0 : (prev[key] || 0) + 1;
             }
           });
         });
@@ -119,12 +154,7 @@ export default function OrdersPage() {
         <h1 className="text-3xl font-bold mb-8">My Orders</h1>
 
         {message && (
-          <div
-            className={`border px-4 py-3 rounded-lg relative mb-6 ${
-              message.includes('successfully') ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'
-            }`}
-            role="alert"
-          >
+          <div className="border px-4 py-3 rounded-lg relative mb-6 bg-blue-100 border-blue-400 text-blue-700" role="alert">
             <span className="block sm:inline">{message}</span>
           </div>
         )}
@@ -139,7 +169,7 @@ export default function OrdersPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {orders.map((order: any) => (
+            {orders.map((order) => (
               <Card key={order.orderId}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -151,11 +181,11 @@ export default function OrdersPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          {order.timestamp?.date || new Date(order.createdAt).toLocaleDateString()}
+                          {new Date(order.createdAt).toLocaleDateString()}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          {order.timestamp?.time || new Date(order.createdAt).toLocaleTimeString()}
+                          {new Date(order.createdAt).toLocaleTimeString()}
                         </span>
                         <span className="flex items-center gap-1">
                           <CreditCard className="w-4 h-4" />
@@ -163,17 +193,8 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     </div>
-                    <Badge
-                      variant={
-                        order.status === 'delivered'
-                          ? 'default'
-                          : order.status === 'shipped'
-                          ? 'secondary'
-                          : order.status === 'processing' || order.status === 'confirmed'
-                          ? 'outline'
-                          : 'destructive'
-                      }
-                    >
+                    {/* --- CORRECTED STATUS BADGE --- */}
+                    <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize">
                       {order.status}
                     </Badge>
                   </div>
@@ -181,17 +202,11 @@ export default function OrdersPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-3">
-                      {order.items?.map((item: any) => (
-                        <div key={item.productRandomId} className="flex items-center gap-3">
-                          <Link
-                            href={`/product/${item.productRandomId}`}
-                            className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block"
-                            tabIndex={0}
-                            aria-label={`View details for ${item.productTitle}`}
-                            style={{ textDecoration: 'none' }}
-                          >
+                      {order.items?.map((item) => (
+                        <div key={item.productId} className="flex items-center gap-3">
+                          <Link href={`/product/${item.productId}`} className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block">
                             <img
-                              src={item.productImages?.[imageIndices[item.productRandomId] || 0] || FALLBACK_IMAGE}
+                              src={item.productImages?.[imageIndices[order.id + item.productId] || 0] || FALLBACK_IMAGE}
                               alt={item.productTitle || 'Product Image'}
                               className="w-full h-full object-cover rounded-lg"
                               loading="lazy"
@@ -199,20 +214,12 @@ export default function OrdersPage() {
                             />
                           </Link>
                           <div className="flex-1">
-                            <Link
-                              href={`/product/${item.productRandomId}`}
-                              className="font-medium text-gray-900 hover:underline block"
-                              tabIndex={0}
-                              aria-label={`View details for ${item.productTitle}`}
-                              style={{ textDecoration: 'none' }}
-                            >
+                            <Link href={`/product/${item.productId}`} className="font-medium text-gray-900 hover:underline block">
                               {item.productTitle}
                             </Link>
                             <div className="text-sm text-gray-600 space-y-1">
-                              <p>Qty: {item.productQuantity} × Rs.{item.productPrice.toFixed(2)}</p>
+                              <p>Qty: {item.productQuantity} × Rs.{(item.productPrice || 0).toFixed(2)}</p>
                               <p>Category: {item.productCategory}</p>
-                              <p>Unit: {item.productUnit}</p>
-                              <p>Type: {item.productType}</p>
                             </div>
                           </div>
                           <div className="font-medium">
@@ -221,19 +228,20 @@ export default function OrdersPage() {
                         </div>
                       ))}
                     </div>
+                    {/* --- CORRECTED TOTALS SECTION --- */}
                     <div className="border-t pt-4">
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Subtotal</span>
-                          <span className="text-gray-900">Rs.{(order.finalTotal - 120).toFixed(2)}</span>
+                          <span className="text-gray-900">Rs.{(order.subtotal || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Delivery Charge</span>
-                          <span className="text-gray-900">Rs.120.00</span>
+                          <span className="text-gray-900">Rs.{(order.shipping || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center font-bold text-lg">
                           <span>Total</span>
-                          <span>Rs.{order.finalTotal.toFixed(2)}</span>
+                          <span>Rs.{(order.finalTotal || 0).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>

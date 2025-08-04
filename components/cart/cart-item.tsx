@@ -1,17 +1,22 @@
-
 'use client';
 
 import Image from 'next/image';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-/**
- * CartItem component displays a single cart item with product details, a delete button, and an image carousel.
- * @param item - The cart item data
- * @param onDelete - Function to trigger the confirmation dialog for deletion
- * @param imageIndex - Current index of the image to display
- */
-export default function CartItem({ item, onDelete, imageIndex }) {
+export default function CartItem({
+  item,
+  onDelete,
+  imageIndex,
+  onQuantityChange,
+  updating = false,
+}: {
+  item: any;
+  onDelete: (id: string, title: string) => void;
+  imageIndex: number;
+  onQuantityChange: (id: string, newQty: number) => void;
+  updating?: boolean;
+}) {
   return (
     <div className="flex items-center gap-4 p-4 border rounded-lg bg-white font-inter relative">
       <div className="relative w-24 h-24 flex-shrink-0">
@@ -48,21 +53,44 @@ export default function CartItem({ item, onDelete, imageIndex }) {
         <p className="text-md font-bold text-blue-900">
           Rs.{item.productPrice.toFixed(2)} <span className="text-sm text-gray-500">per {item.productUnit}</span>
         </p>
-        <p className="text-sm text-gray-600">Quantity: {item.productQuantity}</p>
+        {/* Quantity Counter */}
+        <div className="flex items-center gap-2 mt-2">
+          <Button
+            size="icon"
+            variant="outline"
+            disabled={item.productQuantity <= 1 || updating}
+            onClick={() => onQuantityChange(item.id, item.productQuantity - 1)}
+            aria-label="Decrease quantity"
+          >
+            <Minus className="w-4 h-4" />
+          </Button>
+          <span className="mx-2">{item.productQuantity}</span>
+          <Button
+            size="icon"
+            variant="outline"
+            disabled={item.productQuantity >= item.productStock || updating}
+            onClick={() => onQuantityChange(item.id, item.productQuantity + 1)}
+            aria-label="Increase quantity"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
-      <Button
-        variant="outline"
-        size="icon"
-        className="rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600"
-        onClick={(e) => {
-          e.stopPropagation();
-          console.log("Delete button clicked:", { id: item.id, productTitle: item.productTitle });
-          onDelete(item.id, item.productTitle);
-        }}
-        aria-label={`Remove ${item.productTitle} from cart`}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
+      <div className="flex flex-col items-end">
+        <span className="font-bold">Rs.{(item.productPrice * item.productQuantity).toFixed(2)}</span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600 mt-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id, item.productTitle);
+          }}
+          aria-label={`Remove ${item.productTitle} from cart`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
     </div>
   );
 }
