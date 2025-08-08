@@ -15,6 +15,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ChangeEvent, FC } from 'react';
 
+// --- ADD THIS FUNCTION ---
+// This tells Next.js which category pages to build statically.
+export async function generateStaticParams() {
+  // We use the `categories` array from your mock data.
+  // In a real app, you might fetch this from a database.
+  return categories.map((category) => ({
+    slug: category.slug,
+  }));
+}
+
+// --- TYPE DEFINITIONS (Unchanged) ---
 type Product = {
   productId: string;
   productTitle: string;
@@ -36,6 +47,8 @@ type Category = {
   subcategories?: { id: string; name: string; description?: string }[];
 };
 
+
+// --- YOUR PAGE COMPONENT (Unchanged) ---
 export default function CategoryPage() {
   const params = useParams<{ slug?: string | string[] }>();
   const searchParams = useSearchParams();
@@ -249,7 +262,6 @@ export default function CategoryPage() {
     if (currentPage > 1) setCurrentPage((prev) => prev - 1);
   };
 
-  // Helper for fallback image (since next/image onError doesn't allow direct src change)
   const handleImageError = (
     event: React.SyntheticEvent<HTMLImageElement, Event>
   ) => {
@@ -338,7 +350,6 @@ export default function CategoryPage() {
             </div>
           )}
 
-          {/* SCROLLABLE PRODUCT CONTAINER */}
           <div className="pt-28 lg:pt-0 max-h-[calc(100vh-15rem)] overflow-y-auto pr-4 custom-scrollbar">
             {isLoading ? (
               <div className="text-center py-12">
@@ -358,7 +369,7 @@ export default function CategoryPage() {
                                 <>
                                   <Image
                                     src={item.productImageUris[imageIndices[item.productId] || 0]}
-                                    alt={`${item.productTitle || 'Product Image'} ${imageIndices[item.productId] + 1}`}
+                                    alt={`${item.productTitle || 'Product Image'} ${(imageIndices[item.productId] || 0) + 1}`}
                                     fill
                                     className="object-contain transition-transform duration-300 hover:scale-105"
                                     sizes="100vw"
