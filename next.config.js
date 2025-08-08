@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // NO 'output: "export"' HERE
+  
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -9,22 +11,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
         port: '',
-        pathname: '/v0/b/**', // This wildcard path is crucial for Firebase Storage URLs
+        pathname: '/v0/b/**',
       },
       {
         protocol: 'https',
         hostname: 'placehold.co',
         port: '',
-        pathname: '/**', // Allows any path on placehold.co
+        pathname: '/**',
       },
-      // If you fetch images from other domains, add them here too.
-      // Example for another domain:
-      // {
-      //   protocol: 'https',
-      //   hostname: 'example.com',
-      //   port: '',
-      //   pathname: '/path/to/images/**',
-      // },
     ],
   },
 };
