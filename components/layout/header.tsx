@@ -1,8 +1,6 @@
-
-
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, ShoppingCart, User, Heart, Menu, X, Store, LogOut, Bell, Package } from 'lucide-react';
@@ -18,7 +16,7 @@ import { getDatabase, ref, onValue, off } from 'firebase/database';
 import app from '@/app/firebaseConfig';
 import { categories } from '@/lib/mock-data';
 import Image from 'next/image';
-import { toast as sonnerToast } from 'sonner'; // <-- IMPORT SONNER TOAST
+import { toast as sonnerToast } from 'sonner';
 
 interface UserData {
   UserName?: string;
@@ -28,23 +26,41 @@ interface UserData {
   UserAvatar?: string;
 }
 
+interface NotificationItem {
+  title: string;
+  price: number;
+  quantity: number;
+  images: string[];
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+}
+
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [cartItemCount, setCartItemCount] = useState(0);
-  const [wishlistItemCount, setWishlistItemCount] = useState(0);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
-  const [countsLoading, setCountsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [cartItemCount, setCartItemCount] = useState<number>(0);
+  const [wishlistItemCount, setWishlistItemCount] = useState<number>(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
+  const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
+  const [countsLoading, setCountsLoading] = useState<boolean>(true);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: { [itemIndex: number]: number } }>({});
   const [userProfileData, setUserProfileData] = useState<UserData>({});
-  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const searchInputRef = useRef(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { user, userData, loading, logout } = useFirebaseAuth();
-  const { toast } = useToast(); // Keep for other potential toasts if needed
-
-  // ... (useEffect for fetching user data remains the same) ...
+  const { user, userData, loading, logout } = useFirebaseAuth() as {
+    user: any;
+    userData: any;
+    loading: boolean;
+    logout: () => Promise<void>;
+  };
+  const { toast } = useToast();
 
   useEffect(() => {
     if (loading || !user) {
@@ -70,9 +86,6 @@ export default function Header() {
     return () => off(userRef, 'value', unsubscribe);
   }, [user, loading]);
 
-
-  // ... (useEffect for fetching counts remains the same) ...
-
   useEffect(() => {
     if (loading || !user) {
       setCartItemCount(0);
@@ -97,11 +110,11 @@ export default function Header() {
     });
     const unsubscribeNotifications = onValue(notificationsRef, (snapshot) => {
       let unreadCount = 0;
-      const notifications: any[] = [];
+      const notifications: Notification[] = [];
       if (snapshot.exists()) {
         Object.keys(snapshot.val()).forEach(key => {
           const notification = { id: key, ...snapshot.val()[key] };
-          notifications.push(notification);
+          notifications.push(notification as Notification);
           if (!notification.read) unreadCount++;
         });
         notifications.sort((a, b) => b.timestamp - a.timestamp);
@@ -117,8 +130,6 @@ export default function Header() {
     };
   }, [user, loading]);
 
-
-  // ... (useEffect for image carousel remains the same) ...
   useEffect(() => {
     const interval = setInterval(() => {
       setImageIndices((prev) => {
@@ -140,11 +151,11 @@ export default function Header() {
     return () => clearInterval(interval);
   }, [recentNotifications]);
 
-  // ... (parseNotificationItems and handleSearch remain the same) ...
-  const parseNotificationItems = (message: string) => {
+  const parseNotificationItems = (message: string): NotificationItem[] => {
     const itemLines = message.split('\n').filter(line => line.startsWith('- '));
     return itemLines.map(line => {
-     const match = line.match(/- Title: (.+); Price: Rs\.([\d.]+); Quantity: (\d+); Category: (.+); Unit: (.+); Type: (.+); Images: \[([^\]]*)\]/);
+            const match = line.match(/- Title: (.+); Price: Rs\.([\d.]+); Quantity: (\d+); Category: (.+); Unit: (.+); Type: (.+); Images: \[([^\]]*)\]/);
+
       if (match) {
         const images = match[7].split(',').map(url => url.trim()).filter(url => url);
         return {
@@ -155,10 +166,10 @@ export default function Header() {
         };
       }
       return null;
-    }).filter(item => item !== null);
+    }).filter((item): item is NotificationItem => item !== null);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
@@ -166,28 +177,24 @@ export default function Header() {
     }
   };
 
-
-  /**
-   * Handles user logout with Sonner toast notifications.
-   */
   const handleLogout = async () => {
-    setLogoutDialogOpen(false); // Close dialog first
+    setLogoutDialogOpen(false);
     try {
       await logout();
-      sonnerToast.success('You have been successfully logged out.'); // <-- USE SONNER
+      sonnerToast.success('You have been successfully logged out.');
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
-      sonnerToast.error('Failed to log out. Please try again.'); // <-- USE SONNER
+      sonnerToast.error('Failed to log out. Please try again.');
     }
   };
 
-  const getUserDisplayName = () => {
+  const getUserDisplayName = (): string => {
     if (!user) return 'Guest';
     return userProfileData?.UserName || 'User';
   };
 
-  const getUserContactInfo = () => {
+  const getUserContactInfo = (): string => {
     if (!user) return '';
     return userProfileData.UserPhone || userProfileData.UserEmail || '';
   };
@@ -212,7 +219,7 @@ export default function Header() {
                     type="text"
                     placeholder="Search products..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                     className="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
@@ -245,7 +252,7 @@ export default function Header() {
                             <span className={`text-sm ${notification.read ? 'text-gray-500' : 'font-semibold text-gray-900'}`}>{notification.title}</span>
                             {parseNotificationItems(notification.message).map((item, itemIndex) => (
                               <div key={itemIndex} className="flex items-center gap-2 mt-1">
-                                <img src={item.images[imageIndices[notification.id]?.[itemIndex] || 0]} alt={item.title} className="w-8 h-8 object-cover rounded" onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image')} />
+                                <img src={item.images[imageIndices[notification.id]?.[itemIndex] || 0]} alt={item.title} className="w-8 h-8 object-cover rounded" onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image'; }} />
                                 <div>
                                   <span className="text-xs text-gray-600">{item.title}</span>
                                   <span className="text-xs text-gray-600 block">Rs.{item.price.toFixed(2)} x {item.quantity}</span>
@@ -347,7 +354,6 @@ export default function Header() {
   );
 }
 
-// ... (MobileMenu component remains the same) ...
 interface MobileMenuProps {
   user: any;
   userData: UserData;
@@ -374,9 +380,9 @@ function MobileMenu({
   getUserContactInfo
 }: MobileMenuProps) {
   const router = useRouter();
-  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+  const [mobileSearchQuery, setMobileSearchQuery] = useState<string>('');
 
-  const handleMobileSearch = (e: React.FormEvent) => {
+  const handleMobileSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (mobileSearchQuery.trim()) {
       router.push(`/products?search=${encodeURIComponent(mobileSearchQuery.trim())}`);
@@ -402,7 +408,7 @@ function MobileMenu({
         <div className="p-4 border-b">
           <form onSubmit={handleMobileSearch} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input type="text" placeholder="Search products..." value={mobileSearchQuery} onChange={(e) => setMobileSearchQuery(e.target.value)} className="pl-10 pr-4 py-2 w-full" />
+            <Input type="text" placeholder="Search products..." value={mobileSearchQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setMobileSearchQuery(e.target.value)} className="pl-10 pr-4 py-2 w-full" />
           </form>
         </div>
 

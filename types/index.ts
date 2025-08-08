@@ -14,9 +14,10 @@ export interface Product {
 }
 
 export interface CartItem {
-  id: string;
+  id: string; // This should be the same as productId
+  productId?: string; // Optional, but not needed if id === productId
   productPrice: number;
-  productQuantity: number;
+  productQuantity: number; // This is the quantity in the cart
   productTitle: string;
   productImageUris?: string[];
   productCategory: string;

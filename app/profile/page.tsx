@@ -1,12 +1,12 @@
 'use client';
 
-import { User, MapPin, Edit, Save, Mail, Trash2 } from 'lucide-react';
+import { User as UserIcon, MapPin, Edit, Save, Mail, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, set, get, onValue, off, remove } from 'firebase/database';
 import app from '@/app/firebaseConfig';
@@ -21,15 +21,46 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { getAuth, signOut } from 'firebase/auth'; // <-- Import signOut
+import { getAuth, signOut } from 'firebase/auth';
 
-// ... Address and ProfileData interfaces remain unchanged
+// --- Interfaces ---
+interface Address {
+  id: string;
+  type: string;
+  name: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+}
+
+interface ProfileData {
+  UserName: string;
+  UserAddress: string;
+  UserPhone: string;
+  UserEmail: string;
+  UserAvatar: string;
+  addresses: Address[];
+  orders: any[];
+  preferences: {
+    emailNotifications: boolean;
+    smsNotifications: boolean;
+    orderUpdates: boolean;
+    promotions: boolean;
+    newsletter: boolean;
+  };
+}
 
 export default function ProfilePage() {
-  const { user, userData, loading, refreshUserData } = useFirebaseAuth();
+  const { user, userData, loading, refreshUserData } = useFirebaseAuth() as {
+    user: any;
+    userData: any;
+    loading: boolean;
+    refreshUserData: () => Promise<void>;
+  };
   const router = useRouter();
-
-  // ... all your state hooks
 
   const [profileData, setProfileData] = useState<ProfileData>({
     UserName: '',
@@ -47,9 +78,9 @@ export default function ProfilePage() {
       newsletter: false,
     },
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showAddressDialog, setShowAddressDialog] = useState(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showAddressDialog, setShowAddressDialog] = useState<boolean>(false);
   const [newAddress, setNewAddress] = useState<Address>({
     id: '',
     type: 'home',
@@ -61,8 +92,8 @@ export default function ProfilePage() {
     country: 'Nepal',
     isDefault: false,
   });
-  const [activeTab, setActiveTab] = useState('profile');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('profile');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -187,14 +218,14 @@ export default function ProfilePage() {
     }
   };
 
-  const getUserDisplayName = () => {
+  const getUserDisplayName = (): string => {
     return profileData.UserName || userData?.UserName || user?.phoneNumber?.replace(/^\+977/, '') || user?.email || 'User';
   };
 
-  const getUserContactInfo = () => {
+  const getUserContactInfo = (): string => {
     return profileData.UserPhone || userData?.UserEmail || profileData.UserPhone || userData?.UserPhone || user?.email || user?.phoneNumber || 'No contact info';
   };
-  const getEmailInfo = () => {
+  const getEmailInfo = (): string => {
     return profileData.UserEmail || userData?.UserEmail || profileData.UserPhone || userData?.UserPhone || user?.email || user?.phoneNumber || 'No contact info';
   };
 
@@ -251,7 +282,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <Tabs defaultValue="profile" className="w-full" onValueChange={setActiveTab}>
+        <Tabs defaultValue="profile" className="w-full" onValueChange={(val: string) => setActiveTab(val)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -261,7 +292,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
+                  <UserIcon className="w-5 h-5" />
                   Personal Information
                 </CardTitle>
               </CardHeader>
@@ -273,7 +304,7 @@ export default function ProfilePage() {
                       id="username"
                       type="text"
                       value={profileData.UserName}
-                      onChange={(e) => handleProfileUpdate('UserName', e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => handleProfileUpdate('UserName', e.target.value)}
                       disabled={!isEditing}
                       placeholder="Enter your username"
                     />
@@ -284,7 +315,7 @@ export default function ProfilePage() {
                       id="useremail"
                       type="email"
                       value={profileData.UserEmail}
-                      onChange={(e) => handleProfileUpdate('UserEmail', e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => handleProfileUpdate('UserEmail', e.target.value)}
                       disabled={!isEditing}
                       placeholder="Enter your email"
                     />
@@ -305,7 +336,7 @@ export default function ProfilePage() {
                       id="useraddress"
                       type="text"
                       value={profileData.UserAddress}
-                      onChange={(e) => handleProfileUpdate('UserAddress', e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => handleProfileUpdate('UserAddress', e.target.value)}
                       disabled={!isEditing}
                       placeholder="Enter your address"
                     />
@@ -321,7 +352,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-gray-400" />
+                    <UserIcon className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="font-medium">{profileData.UserPhone || 'Not provided'}</p>
                       <p className="text-sm text-gray-600">Phone Number</p>

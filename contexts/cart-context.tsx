@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { CartItem, Product } from '@/types';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { CartItem, Product } from '@/types';
 
 interface CartContextType {
   items: CartItem[];
@@ -15,61 +15,65 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+interface CartProviderProps {
+  children: ReactNode;
+}
+
+export function CartProvider({ children }: CartProviderProps) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // Load cart from localStorage on mount
-  // useEffect(() => {
-  //   const savedCart = localStorage.getItem('cart');
-  //   if (savedCart) {
-  //     try {
-  //       setItems(JSON.parse(savedCart));
-  //     } catch (error) {
-  //       console.error('Error loading cart from localStorage:', error);
-  //     }
-  //   }
-  // }, []);
-
-  // // Save cart to localStorage whenever items change
-  // useEffect(() => {
-  //   localStorage.setItem('cart', JSON.stringify(items));
-  // }, [items]);
-
   const addItem = (product: Product, quantity: number = 1) => {
-    if (!product || !product.id) {
+    if (!product || !product.productId) {
       console.error('Invalid product data');
       return;
     }
-    
+
     if (quantity <= 0) {
       console.error('Invalid quantity');
       return;
     }
-    
+
     setItems(currentItems => {
-      const existingItem = currentItems.find(item => item.id === product.id);
-      
+      const existingItem = currentItems.find(item => item.id === product.productId);
+
       if (existingItem) {
-        const newQuantity = existingItem.quantity + quantity;
+        const newQuantity = existingItem.productQuantity + quantity;
         // Check stock limit
-        if (newQuantity > product.stockQuantity) {
+        if (newQuantity > product.productStock) {
           console.warn('Cannot add more items than available in stock');
           return currentItems.map(item =>
-            item.id === product.id
-              ? { ...item, quantity: product.stockQuantity }
+            item.id === product.productId
+              ? { ...item, productQuantity: product.productStock }
               : item
           );
         }
         return currentItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: newQuantity }
+          item.id === product.productId
+            ? { ...item, productQuantity: newQuantity }
             : item
         );
       }
 
       // Check if requested quantity exceeds stock
-      const finalQuantity = Math.min(quantity, product.stockQuantity);
-      return [...currentItems, { id: product.id, product, quantity }];
+      const finalQuantity = Math.min(quantity, product.productStock);
+
+      // Map Product to CartItem
+      const cartItem: CartItem = {
+        id: product.productId,
+        productPrice: product.productPrice,
+        productQuantity: finalQuantity,
+        productTitle: product.productTitle,
+        productImageUris: product.productImageUris,
+        productCategory: product.productCategory,
+        productStock: product.productStock,
+        productUnit: product.productUnit,
+        productType: product.productType,
+        adminUid: product.adminUid,
+        productRandomId: product.productRandomId,
+        addedAt: Date.now(),
+      };
+
+      return [...currentItems, cartItem];
     });
   };
 
@@ -85,7 +89,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     setItems(currentItems =>
       currentItems.map(item =>
-        item.id === productId ? { ...item, quantity } : item
+        item.id === productId ? { ...item, productQuantity: quantity } : item
       )
     );
   };
@@ -95,11 +99,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getItemCount = () => {
-    return items.reduce((total, item) => total + item.quantity, 0);
+    return items.reduce((total, item) => total + item.productQuantity, 0);
   };
 
   const getTotal = () => {
-    return items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+    return items.reduce((total, item) => total + (item.productPrice * item.productQuantity), 0);
   };
 
   return (
@@ -119,7 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useCart() {
+export function useCart(): CartContextType {
   const context = useContext(CartContext);
   if (context === undefined) {
     throw new Error('useCart must be used within a CartProvider');

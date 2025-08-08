@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,14 +13,31 @@ import { getDatabase, ref, get, remove } from 'firebase/database';
 import app from '../firebaseConfig';
 import { toast } from 'sonner';
 
+type WishlistItem = {
+  wishlistItemId: string;
+  productId: string;
+  productTitle: string;
+  productCategory: string;
+  productPrice: number;
+  productUnit: string;
+  productType?: string;
+  productStock: number;
+  productImageUris: string[];
+};
+
+type DialogItem = {
+  wishlistItemId: string;
+  productTitle: string;
+} | null;
+
 export default function WishlistPage() {
   const router = useRouter();
-  const { user, loading } = useFirebaseAuth();
-  const [items, setItems] = useState([]);
-  const [wishlistLoading, setWishlistLoading] = useState(true);
+  const { user, loading } = useFirebaseAuth() as { user: any; loading: boolean };
+  const [items, setItems] = useState<WishlistItem[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState<boolean>(true);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogItem, setDialogItem] = useState<{ wishlistItemId: string; productTitle: string } | null>(null);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [dialogItem, setDialogItem] = useState<DialogItem>(null);
 
   const fetchWishlistItems = async () => {
     if (!user) return;
@@ -32,8 +49,8 @@ export default function WishlistPage() {
       const snapshot = await get(wishlistRef);
 
       if (snapshot.exists()) {
-        const wishlistData = snapshot.val();
-        const wishlistItems = Object.keys(wishlistData).map((key) => ({
+        const wishlistData = snapshot.val() as Record<string, any>;
+        const wishlistItems: WishlistItem[] = Object.keys(wishlistData).map((key) => ({
           ...wishlistData[key],
           productId: wishlistData[key].productId,
           wishlistItemId: key
@@ -47,7 +64,7 @@ export default function WishlistPage() {
         setItems([]);
         setImageIndices({});
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching wishlist items:", error);
       setItems([]);
       setImageIndices({});
@@ -67,13 +84,13 @@ export default function WishlistPage() {
       setItems([]);
       setImageIndices({});
       toast.success('Wishlist cleared successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error clearing wishlist:", error);
       toast.error(`Failed to clear wishlist: ${error.message}`);
     }
   };
 
-  const handleDeleteFromWishlist = async (wishlistItemId, productTitle) => {
+  const handleDeleteFromWishlist = async (wishlistItemId: string, productTitle: string) => {
     if (!user) {
       toast.error('Please log in to remove items from your wishlist.');
       return;
@@ -90,13 +107,13 @@ export default function WishlistPage() {
         return newIndices;
       });
       toast.success(`"${productTitle}" removed from wishlist successfully!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing item from wishlist:", error);
       toast.error(`Failed to remove "${productTitle}" from wishlist: ${error.message}`);
     }
   };
 
-  const openConfirmDialog = (wishlistItemId, productTitle) => {
+  const openConfirmDialog = (wishlistItemId: string, productTitle: string) => {
     setDialogItem({ wishlistItemId, productTitle });
     setDialogOpen(true);
   };
@@ -131,6 +148,7 @@ export default function WishlistPage() {
     } else if (user) {
       fetchWishlistItems();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, router]);
 
   if (loading || wishlistLoading) {
@@ -190,7 +208,7 @@ export default function WishlistPage() {
                     <>
                       <Image
                         src={item.productImageUris[imageIndices[item.productId] || 0]}
-                        alt={`${item.productTitle || "Product Image"} ${imageIndices[item.productId] + 1}`}
+                        alt={`${item.productTitle || "Product Image"} ${(imageIndices[item.productId] || 0) + 1}`}
                         fill
                         className="object-contain transition-transform duration-300 hover:scale-105"
                         sizes="100vw"
@@ -198,7 +216,7 @@ export default function WishlistPage() {
                       />
                       {item.productImageUris.length > 1 && (
                         <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-                          {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                          {(imageIndices[item.productId] || 0) + 1} / {item.productImageUris.length}
                         </div>
                       )}
                     </>
@@ -232,7 +250,7 @@ export default function WishlistPage() {
                 variant="outline"
                 size="icon"
                 className="absolute top-4 right-4 rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600 z-10"
-                onClick={(e) => {
+                onClick={(e: MouseEvent<HTMLButtonElement>) => {
                   e.preventDefault();
                   openConfirmDialog(item.wishlistItemId, item.productTitle);
                 }}

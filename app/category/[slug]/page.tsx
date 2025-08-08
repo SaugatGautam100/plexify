@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { getDatabase, ref, get } from 'firebase/database';
 import app from '../../../app/firebaseConfig';
 import Link from 'next/link';
 import Image from 'next/image';
+import type { ChangeEvent, FC } from 'react';
 
 type Product = {
   productId: string;
@@ -36,26 +37,30 @@ type Category = {
 };
 
 export default function CategoryPage() {
-  const params = useParams();
+  const params = useParams<{ slug?: string | string[] }>();
   const searchParams = useSearchParams();
-  const categorySlug = Array.isArray(params.slug) ? params.slug[0] : (params.slug as string) || '';
+  const router = useRouter();
+  const categorySlug =
+    Array.isArray(params.slug) ? params.slug[0] : (params.slug as string) || '';
 
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [message, setMessage] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
-  const [sortBy, setSortBy] = useState('featured');
-  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('featured');
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 48;
 
   const minInputRef = useRef<HTMLInputElement>(null);
   const maxInputRef = useRef<HTMLInputElement>(null);
 
-  const category: Category | undefined = categories.find((cat: Category) => cat.slug === categorySlug);
+  const category: Category | undefined = categories.find(
+    (cat: Category) => cat.slug === categorySlug
+  );
 
   const fetchProducts = useCallback(async () => {
     if (!category) {
@@ -193,7 +198,7 @@ export default function CategoryPage() {
     );
   }
 
-  const FilterContent = () => (
+  const FilterContent: FC = () => (
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold mb-3 text-gray-700">Search</h3>
@@ -201,7 +206,7 @@ export default function CategoryPage() {
           placeholder="Search products..."
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
           className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
@@ -212,7 +217,7 @@ export default function CategoryPage() {
             type="number"
             placeholder="Min"
             value={priceRange.min}
-            onChange={(e) => handlePriceChange('min', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => handlePriceChange('min', e.target.value)}
             ref={minInputRef}
             className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -221,7 +226,7 @@ export default function CategoryPage() {
             type="number"
             placeholder="Max"
             value={priceRange.max}
-            onChange={(e) => handlePriceChange('max', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => handlePriceChange('max', e.target.value)}
             ref={maxInputRef}
             className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -244,6 +249,13 @@ export default function CategoryPage() {
     if (currentPage > 1) setCurrentPage((prev) => prev - 1);
   };
 
+  // Helper for fallback image (since next/image onError doesn't allow direct src change)
+  const handleImageError = (
+    event: React.SyntheticEvent<HTMLImageElement, Event>
+  ) => {
+    event.currentTarget.src = 'https://placehold.co/1200x400/E0E0E0/808080?text=Image+Error';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
       <div className="mb-8">
@@ -253,7 +265,7 @@ export default function CategoryPage() {
             alt={category.name}
             fill
             className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.src = 'https://placehold.co/1200x400/E0E0E0/808080?text=Image+Error'; }}
+            onError={handleImageError}
           />
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
             <div className="text-center text-white">
@@ -351,10 +363,11 @@ export default function CategoryPage() {
                                     className="object-contain transition-transform duration-300 hover:scale-105"
                                     sizes="100vw"
                                     style={{ objectFit: 'contain' }}
+                                    onError={handleImageError}
                                   />
                                   {item.productImageUris.length > 1 && (
                                     <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-                                      {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                                      {(imageIndices[item.productId] || 0) + 1} / {item.productImageUris.length}
                                     </div>
                                   )}
                                 </>

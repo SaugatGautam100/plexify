@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getDatabase, ref, onValue, off, update, set, push } from 'firebase/database';
+import { getDatabase, ref, onValue, off, update, set, push, Unsubscribe } from 'firebase/database';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import app from '../../firebaseConfig';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,11 +9,29 @@ import { BellRing, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
+type NotificationItem = {
+  title: string;
+  price: number;
+  quantity: number;
+  category: string;
+  unit: string;
+  type: string;
+  images: string[];
+};
+
+type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+};
+
 export default function NotificationsPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [message, setMessage] = useState<string>('');
   const [imageIndices, setImageIndices] = useState<{ [key: string]: { [itemIndex: number]: number } }>({});
   const router = useRouter();
 
@@ -50,12 +67,12 @@ export default function NotificationsPage() {
     const userNotificationsRef = ref(db, `AllUsers/Users/${user.uid}/UserNotifications`);
 
     const unsubscribeDb = onValue(userNotificationsRef, (snapshot) => {
-      const fetchedNotifications: any[] = [];
+      const fetchedNotifications: Notification[] = [];
       const newImageIndices: { [key: string]: { [itemIndex: number]: number } } = {};
       if (snapshot.exists()) {
-        const notificationsData = snapshot.val();
+        const notificationsData = snapshot.val() as Record<string, any>;
         Object.keys(notificationsData).forEach(key => {
-          const notification = { id: key, ...notificationsData[key] };
+          const notification: Notification = { id: key, ...notificationsData[key] };
           fetchedNotifications.push(notification);
           // Initialize image indices for each item in the notification
           const items = parseNotificationItems(notification.message);
@@ -83,7 +100,7 @@ export default function NotificationsPage() {
     });
 
     return () => {
-      off(userNotificationsRef, 'value', unsubscribeDb);
+      off(userNotificationsRef, 'value', unsubscribeDb as unknown as Unsubscribe);
     };
   }, [user, authLoading, router]);
 
@@ -109,10 +126,11 @@ export default function NotificationsPage() {
     return () => clearInterval(interval);
   }, [notifications]);
 
-  const parseNotificationItems = (message: string) => {
+  function parseNotificationItems(message: string): NotificationItem[] {
     const itemLines = message.split('\n').filter(line => line.startsWith('- '));
     return itemLines.map(line => {
-      const match = line.match(/- Title: (.+); Price: Rs\.([\d.]+); Quantity: (\d+); Category: (.+); Unit: (.+); Type: (.+); Images: \[([^\]]*)\]/);
+            const match = line.match(/- Title: (.+); Price: Rs\.([\d.]+); Quantity: (\d+); Category: (.+); Unit: (.+); Type: (.+); Images: \[([^\]]*)\]/);
+
       if (match) {
         const images = match[7].split(',').map(url => url.trim()).filter(url => url);
         return {
@@ -126,8 +144,8 @@ export default function NotificationsPage() {
         };
       }
       return null;
-    }).filter(item => item !== null);
-  };
+    }).filter((item): item is NotificationItem => item !== null);
+  }
 
   const markAsRead = async (notificationId: string) => {
     if (!user) {
@@ -265,7 +283,9 @@ export default function NotificationsPage() {
                                   src={item.images[imageIndices[notification.id]?.[itemIndex] || 0]}
                                   alt={item.title}
                                   className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded"
-                                  onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image')}
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/100x100/E0E0E0/808080?text=No+Image';
+                                  }}
                                 />
                                 <div>
                                   <p className="text-xs sm:text-sm font-medium">{item.title}</p>
@@ -312,3 +332,6 @@ export default function NotificationsPage() {
     </div>
   );
 }
+
+
+
