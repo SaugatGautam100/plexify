@@ -1,4 +1,4 @@
-
+'use client';
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import app from "../../firebaseConfig";
 import { getDatabase, ref, get, push, set, update } from "firebase/database";
