@@ -4,7 +4,7 @@ import { Inter } from 'next/font/google';
 import { CartProvider } from '@/contexts/cart-context';
 import { AuthProvider } from '@/contexts/auth-context';
 import { WishlistProvider } from '@/contexts/wishlist-context';
-import { SellerProvider } from '@/contexts/seller-context';
+
 import { FirebaseAuthProvider } from '@/components/auth/firebase-auth-context';
 import { Toaster } from '@/components/ui/sonner';
 import Header from '@/components/layout/header';
@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <FirebaseAuthProvider>
           <AuthProvider>
-            <SellerProvider>
+            
               <CartProvider>
                 <WishlistProvider>
                   <div className="min-h-screen flex flex-col">
@@ -55,7 +55,7 @@ export default function RootLayout({
                   />
                 </WishlistProvider>
               </CartProvider>
-            </SellerProvider>
+           
           </AuthProvider>
         </FirebaseAuthProvider>
       </body>
