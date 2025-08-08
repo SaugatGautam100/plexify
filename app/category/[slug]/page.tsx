@@ -1,4 +1,5 @@
-'use client';
+// /app/category/[slug]/CategoryClientPage.tsx
+'use client'; // THIS IS THE CLIENT COMPONENT
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -15,17 +16,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ChangeEvent, FC } from 'react';
 
-// --- ADD THIS FUNCTION ---
-// This tells Next.js which category pages to build statically.
-export async function generateStaticParams() {
-  // We use the `categories` array from your mock data.
-  // In a real app, you might fetch this from a database.
-  return categories.map((category) => ({
-    slug: category.slug,
-  }));
-}
-
-// --- TYPE DEFINITIONS (Unchanged) ---
+// --- TYPE DEFINITIONS ---
 type Product = {
   productId: string;
   productTitle: string;
@@ -47,9 +38,8 @@ type Category = {
   subcategories?: { id: string; name: string; description?: string }[];
 };
 
-
-// --- YOUR PAGE COMPONENT (Unchanged) ---
-export default function CategoryPage() {
+// The component function itself
+export default function CategoryClientPage() {
   const params = useParams<{ slug?: string | string[] }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -270,6 +260,7 @@ export default function CategoryPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
+      {/* ... The rest of your JSX goes here ... */}
       <div className="mb-8">
         <div className="aspect-[3/1] relative bg-gray-100 rounded-lg overflow-hidden mb-6">
           <Image
@@ -404,7 +395,7 @@ export default function CategoryPage() {
                         <Button size="lg" className="rounded-lg" onClick={handlePrevPage} disabled={currentPage === 1}>Previous</Button>
                         <span className="text-gray-600">Page {currentPage} of {totalPages}</span>
                         <Button size="lg" className="rounded-lg" onClick={handleNextPage} disabled={currentPage === totalPages}>Next</Button>
-                      </div>
+      </div>
                     )}
                   </>
                 ) : (
