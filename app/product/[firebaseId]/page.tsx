@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import app from "../../firebaseConfig";
 import { getDatabase, ref, get, push, set, update } from "firebase/database";
 import { getAuth } from "firebase/auth";
@@ -9,19 +9,37 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner'; // Use Sonner toast
+import { toast } from 'sonner';
+
+// You can import this from your types if you have it
+type Product = {
+  adminUid: string;
+  itemCount: number;
+  productCategory: string;
+  productId: string;
+  productImageUris: string[];
+  productPrice: number;
+  productQuantity: number;
+  productRandomId: string;
+  productStock: number;
+  productTitle: string;
+  productType: string;
+  productUnit: string;
+  productBrand?: string;
+  productMaterial?: string;
+};
 
 function ProductDetailPage() {
-  const params = useParams();
+  const params = useParams<{ firebaseId: string }>();
   const router = useRouter();
   const productId = params.firebaseId;
 
-  const [productData, setProductData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [productQuantity, setProductQuantity] = useState(1);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
-  const [zoomedImageIndex, setZoomedImageIndex] = useState(0);
+  const [productData, setProductData] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [productQuantity, setProductQuantity] = useState<number>(1);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState<boolean>(false);
+  const [zoomedImageIndex, setZoomedImageIndex] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,18 +91,18 @@ function ProductDetailPage() {
         return;
       }
 
-      const requiredFields = [
+      const requiredFields: (keyof Product)[] = [
         'productTitle', 'productPrice', 'productCategory',
         'productStock', 'productUnit', 'productType', 'adminUid', 'productId'
       ];
       for (const field of requiredFields) {
         if (!productData[field]) {
-          errorMessage = `Missing product detail: ${field.replace('product', '')}. Cannot add to cart.`;
+          errorMessage = `Missing product detail: ${String(field).replace('product', '')}. Cannot add to cart.`;
           return;
         }
       }
 
-      const quantity = parseInt(productQuantity, 10);
+      const quantity = Number(productQuantity);
       if (isNaN(quantity) || quantity < 1) {
         errorMessage = "Please enter a valid quantity (minimum 1).";
         return;
@@ -131,10 +149,10 @@ function ProductDetailPage() {
           productCategory: productData.productCategory,
           productId: productData.productId,
           productImageUris: productData.productImageUris || [],
-          productPrice: parseFloat(productData.productPrice),
+          productPrice: Number(productData.productPrice),
           productQuantity: quantity,
           productRandomId: productData.productRandomId || null,
-          productStock: parseInt(productData.productStock),
+          productStock: Number(productData.productStock),
           productTitle: productData.productTitle,
           productType: productData.productType,
           productUnit: productData.productUnit,
@@ -143,7 +161,7 @@ function ProductDetailPage() {
         successMessage = `"${productData.productTitle}" added to cart successfully!`;
       }
       setProductQuantity(1);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding/updating to cart:", error);
       errorMessage = `Failed to add product to cart: ${error.message}.`;
     } finally {
@@ -172,13 +190,13 @@ function ProductDetailPage() {
         return;
       }
 
-      const requiredFields = [
+      const requiredFields: (keyof Product)[] = [
         'productId', 'productTitle', 'productPrice', 'productCategory',
         'productStock', 'productUnit', 'productType', 'adminUid'
       ];
       for (const field of requiredFields) {
         if (!productData[field]) {
-          errorMessage = `Missing product detail: ${field.replace('product', '')}. Cannot add to wishlist.`;
+          errorMessage = `Missing product detail: ${String(field).replace('product', '')}. Cannot add to wishlist.`;
           return;
         }
       }
@@ -207,10 +225,10 @@ function ProductDetailPage() {
           productCategory: productData.productCategory,
           productId: productData.productId,
           productImageUris: productData.productImageUris || [],
-          productPrice: parseFloat(productData.productPrice),
+          productPrice: Number(productData.productPrice),
           productQuantity: 1,
           productRandomId: productData.productRandomId || null,
-          productStock: parseInt(productData.productStock),
+          productStock: Number(productData.productStock),
           productTitle: productData.productTitle,
           productType: productData.productType,
           productUnit: productData.productUnit,
@@ -218,7 +236,7 @@ function ProductDetailPage() {
         });
         successMessage = `"${productData.productTitle}" added to wishlist successfully!`;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding to wishlist:", error);
       errorMessage = `Failed to add product to wishlist: ${error.message}.`;
     } finally {
@@ -231,8 +249,8 @@ function ProductDetailPage() {
   };
 
   const handleBackButtonClick = () => router.back();
-  const handleQuantityChange = (e) => setProductQuantity(e.target.value);
-  const openZoomModal = (index) => {
+  const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>) => setProductQuantity(Number(e.target.value));
+  const openZoomModal = (index: number) => {
     setZoomedImageIndex(index);
     setIsZoomModalOpen(true);
   };
@@ -262,6 +280,11 @@ function ProductDetailPage() {
     }
   }, [productData]);
 
+  // Helper for fallback image (for next/image, you may need a wrapper for onError)
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = "https://placehold.co/800x600/E0E0E0/808080?text=Image+Error";
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
       <div className="mb-6">
@@ -290,12 +313,9 @@ function ProductDetailPage() {
                     <Image
                       src={productData.productImageUris[currentImageIndex]}
                       alt={productData.productTitle || "Product Image"}
-                      layout="fill"
-                      objectFit="contain"
-                      className="rounded-lg cursor-pointer"
-                      onError={(e) => {
-                        e.currentTarget.src = "https://placehold.co/800x600/E0E0E0/808080?text=Image+Error";
-                      }}
+                      fill
+                      className="rounded-lg cursor-pointer object-contain"
+                      onError={handleImageError}
                       onClick={() => openZoomModal(currentImageIndex)}
                     />
                     {productData.productImageUris.length > 1 && (
@@ -328,9 +348,8 @@ function ProductDetailPage() {
                   <Image
                     src="https://placehold.co/800x600/E0E0E0/808080?text=No+Image"
                     alt="No Image Available"
-                    layout="fill"
-                    objectFit="contain"
-                    className="rounded-lg"
+                    fill
+                    className="rounded-lg object-contain"
                   />
                 )}
               </div>
@@ -377,7 +396,7 @@ function ProductDetailPage() {
                     <Input
                       id="quantity"
                       type="number"
-                      min="1"
+                      min={1}
                       max={productData.productStock}
                       value={productQuantity}
                       onChange={handleQuantityChange}
@@ -426,12 +445,9 @@ function ProductDetailPage() {
               <Image
                 src={productData.productImageUris[zoomedImageIndex]}
                 alt={`${productData.productTitle || "Product Image"} - Zoomed`}
-                layout="fill"
-                objectFit="contain"
-                className="rounded-lg"
-                onError={(e) => {
-                  e.currentTarget.src = "https://placehold.co/1000x800/E0E0E0/808080?text=Image+Error";
-                }}
+                fill
+                className="rounded-lg object-contain"
+                onError={handleImageError}
               />
               {productData.productImageUris.length > 1 && (
                 <>
