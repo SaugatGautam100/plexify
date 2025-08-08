@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,31 +11,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, get, remove } from 'firebase/database';
 import app from '../firebaseConfig';
+import { toast } from 'sonner';
 
-/**
- * WishlistPage component displays the user's wishlist, fetching items from Firebase Realtime Database.
- * It includes a responsive layout with product cards matching ProductsPage design, with a delete button for each item.
- * A styled confirmation dialog is shown before deleting an item.
- */
 export default function WishlistPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
   const [items, setItems] = useState([]);
   const [wishlistLoading, setWishlistLoading] = useState(true);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
-  const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<{ wishlistItemId: string; productTitle: string } | null>(null);
 
-  /**
-   * Fetches wishlist items from Firebase Realtime Database for the authenticated user.
-   * Includes wishlistItemId (Firebase key) for deletion.
-   */
   const fetchWishlistItems = async () => {
     if (!user) return;
 
     setWishlistLoading(true);
-    setMessage('');
     try {
       const db = getDatabase(app);
       const wishlistRef = ref(db, `AllUsers/Users/${user.uid}/UserWishlistItems`);
@@ -62,15 +51,12 @@ export default function WishlistPage() {
       console.error("Error fetching wishlist items:", error);
       setItems([]);
       setImageIndices({});
-      setMessage(`Failed to load wishlist: ${error.message}`);
+      toast.error(`Failed to load wishlist: ${error.message}`);
     } finally {
       setWishlistLoading(false);
     }
   };
 
-  /**
-   * Clears all items from the user's wishlist in Firebase.
-   */
   const clearWishlist = async () => {
     if (!user) return;
 
@@ -80,21 +66,16 @@ export default function WishlistPage() {
       await remove(wishlistRef);
       setItems([]);
       setImageIndices({});
-      setMessage('Wishlist cleared successfully!');
+      toast.success('Wishlist cleared successfully!');
     } catch (error) {
       console.error("Error clearing wishlist:", error);
-      setMessage(`Failed to clear wishlist: ${error.message}`);
+      toast.error(`Failed to clear wishlist: ${error.message}`);
     }
   };
 
-  /**
-   * Deletes a single item from the user's wishlist in Firebase.
-   * @param wishlistItemId - The Firebase key of the wishlist item
-   * @param productTitle - The title of the product for feedback
-   */
   const handleDeleteFromWishlist = async (wishlistItemId, productTitle) => {
     if (!user) {
-      setMessage('Please log in to remove items from your wishlist.');
+      toast.error('Please log in to remove items from your wishlist.');
       return;
     }
 
@@ -108,26 +89,18 @@ export default function WishlistPage() {
         delete newIndices[wishlistItemId];
         return newIndices;
       });
-      setMessage(`"${productTitle}" removed from wishlist successfully!`);
+      toast.success(`"${productTitle}" removed from wishlist successfully!`);
     } catch (error) {
       console.error("Error removing item from wishlist:", error);
-      setMessage(`Failed to remove "${productTitle}" from wishlist: ${error.message}`);
+      toast.error(`Failed to remove "${productTitle}" from wishlist: ${error.message}`);
     }
   };
 
-  /**
-   * Opens the confirmation dialog for deleting a wishlist item.
-   * @param wishlistItemId - The Firebase key of the wishlist item
-   * @param productTitle - The title of the product for the dialog message
-   */
   const openConfirmDialog = (wishlistItemId, productTitle) => {
     setDialogItem({ wishlistItemId, productTitle });
     setDialogOpen(true);
   };
 
-  /**
-   * Handles confirmation of deletion and closes the dialog.
-   */
   const handleConfirmDelete = () => {
     if (dialogItem) {
       handleDeleteFromWishlist(dialogItem.wishlistItemId, dialogItem.productTitle);
@@ -136,7 +109,6 @@ export default function WishlistPage() {
     setDialogItem(null);
   };
 
-  // Automatic carousel cycling for wishlist items
   useEffect(() => {
     const interval = setInterval(() => {
       setImageIndices(prev => {
@@ -149,12 +121,10 @@ export default function WishlistPage() {
         });
         return newIndices;
       });
-    }, 1500); // Change image every 1.5 seconds
-
+    }, 1500);
     return () => clearInterval(interval);
   }, [items]);
 
-  // Fetch wishlist items when user is authenticated
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login?returnUrl=/wishlist');
@@ -175,7 +145,7 @@ export default function WishlistPage() {
   }
 
   if (!user) {
-    return null; // Will redirect
+    return null;
   }
 
   if (items.length === 0) {
@@ -200,16 +170,6 @@ export default function WishlistPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
-      {message && (
-        <div
-          className={`border px-4 py-3 rounded-lg relative mb-6 ${
-            message.includes('successfully') ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'
-          }`}
-          role="alert"
-        >
-          <span className="block sm:inline">{message}</span>
-        </div>
-      )}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">My Wishlist</h1>
@@ -220,59 +180,67 @@ export default function WishlistPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {items.map((item) => (
           <Card key={item.productId} className="rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
-            <Link href={`/product/${item.productId}`} className="block">
-              <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-gray-100">
-                {item.productImageUris && item.productImageUris.length > 0 ? (
-                  <>
+            <div className="relative">
+              <Link href={`/product/${item.productId}`} className="block">
+                <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-white border-b border-gray-200">
+                  {item.productImageUris && item.productImageUris.length > 0 ? (
+                    <>
+                      <Image
+                        src={item.productImageUris[imageIndices[item.productId] || 0]}
+                        alt={`${item.productTitle || "Product Image"} ${imageIndices[item.productId] + 1}`}
+                        fill
+                        className="object-contain transition-transform duration-300 hover:scale-105"
+                        sizes="100vw"
+                        style={{ objectFit: 'contain' }}
+                      />
+                      {item.productImageUris.length > 1 && (
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                          {imageIndices[item.productId] + 1} / {item.productImageUris.length}
+                        </div>
+                      )}
+                    </>
+                  ) : (
                     <Image
-                      src={item.productImageUris[imageIndices[item.productId] || 0]}
-                      alt={`${item.productTitle || "Product Image"} ${imageIndices[item.productId] + 1}`}
+                      src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
+                      alt="No Image Available"
                       fill
                       className="object-contain transition-transform duration-300 hover:scale-105"
-                      onError={(e) => {
-                        e.currentTarget.src = "https://placehold.co/600x400/E0E0E0/808080?text=Image+Error";
-                      }}
+                      sizes="100vw"
+                      style={{ objectFit: 'contain' }}
                     />
-                    {item.productImageUris.length > 1 && (
-                      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-                        {imageIndices[item.productId] + 1} / {item.productImageUris.length}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Image
-                    src="https://placehold.co/600x400/E0E0E0/808080?text=No+Image"
-                    alt="No Image Available"
-                    fill
-                    className="object-contain transition-transform duration-300 hover:scale-105"
-                  />
-                )}
-              </div>
-              <CardContent className="p-4 relative">
-                <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">{item.productTitle}</h2>
-                <p className="text-sm text-gray-600">{item.productCategory}</p>
-                <p className="text-sm text-gray-600">Available: {item.productStock}</p>
-                <div className="mt-2 text-xl font-bold text-blue-900">
-                  Rs.{item.productPrice}{' '}
-                  <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute top-4 right-4 rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openConfirmDialog(item.wishlistItemId, item.productTitle);
-                  }}
-                  aria-label={`Remove ${item.productTitle} from wishlist`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </CardContent>
-            </Link>
+                <CardContent className="p-4">
+                  <h2 className="mb-1 text-lg font-semibold text-gray-800 truncate">{item.productTitle}</h2>
+                  <p className="text-sm text-gray-600">{item.productCategory}</p>
+                  <div className="mt-2 text-xl font-bold text-blue-900">
+                    Rs.{item.productPrice?.toFixed(2) || '0.00'}{' '}
+                    <span className="text-sm text-gray-500">per {item.productUnit}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Type: {item.productType || '-'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Available: {item.productStock}
+                  </p>
+                </CardContent>
+              </Link>
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute top-4 right-4 rounded-full border-gray-300 hover:bg-red-50 hover:text-red-600 z-10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openConfirmDialog(item.wishlistItemId, item.productTitle);
+                }}
+                aria-label={`Remove ${item.productTitle} from wishlist`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </Card>
         ))}
       </div>

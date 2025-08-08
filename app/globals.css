@@ -82,6 +82,18 @@
     @apply bg-background text-foreground;
   }
 }
+/* Fix Sonner toast stacking background and text color */
+.sonner-toast,
+.sonner-toast[data-styled] {
+  background: #1e293b !important; /* dark blue/black, matches your theme */
+  color: #fff !important;
+  border: 2px solid #2563eb !important; /* blue border */
+}
+
+.sonner-toast .toaster-title,
+.sonner-toast .toaster-description {
+  color: #fff !important;
+}
 
 /* .hero-section {
   background-image: url('/public/banner_image.png');

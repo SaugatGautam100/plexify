@@ -4,7 +4,11 @@ import { useState, useRef } from 'react';
 import { Camera, Upload, X, RotateCw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { getDatabase, ref as dbRef, update } from 'firebase/database';
+import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
+import app from '@/app/firebaseConfig';
 
 interface AvatarUploadProps {
   currentAvatar: string;
@@ -18,7 +22,7 @@ export default function AvatarUpload({ currentAvatar, onAvatarUpdate, userName }
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const { user } = useFirebaseAuth();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -30,21 +34,13 @@ export default function AvatarUpload({ currentAvatar, onAvatarUpdate, userName }
   const processFile = (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please select an image file.',
-        variant: 'destructive',
-      });
+      toast.error('Invalid file type. Please select an image file.');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please select an image smaller than 5MB.',
-        variant: 'destructive',
-      });
+      toast.error('File too large. Please select an image smaller than 5MB.');
       return;
     }
 
@@ -57,28 +53,32 @@ export default function AvatarUpload({ currentAvatar, onAvatarUpdate, userName }
   };
 
   const handleSaveAvatar = async () => {
-    if (!selectedImage) return;
+    if (!selectedImage || !user) return;
 
     setIsProcessing(true);
     
     try {
-      // Simulate upload process - replace with actual upload logic
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      onAvatarUpdate(selectedImage);
+      // 1. Upload to Firebase Storage
+      const storage = getStorage(app);
+      const storagePath = `UsersAvatars/${user.uid}/avatar.jpg`;
+      const storageReference = ref(storage, storagePath);
+      const uploadResult = await uploadString(storageReference, selectedImage, 'data_url');
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+
+      // 2. Update Firebase Realtime Database
+      const db = getDatabase(app);
+      const userDbRef = dbRef(db, `AllUsers/Users/${user.uid}`);
+      await update(userDbRef, { UserAvatar: downloadURL });
+
+      // 3. Update local state
+      onAvatarUpdate(downloadURL);
       setIsOpen(false);
       setSelectedImage(null);
       
-      toast({
-        title: 'Avatar updated',
-        description: 'Your profile picture has been updated successfully.',
-      });
+      toast.success('Your profile picture has been updated successfully.');
     } catch (error) {
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to update avatar. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Avatar upload failed:', error);
+      toast.error('Failed to update avatar. Please try again.');
     } finally {
       setIsProcessing(false);
     }

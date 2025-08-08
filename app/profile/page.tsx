@@ -1,55 +1,35 @@
 'use client';
 
-import { User, MapPin, Edit, Plus, Trash2, Save, Mail } from 'lucide-react';
+import { User, MapPin, Edit, Save, Mail, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { getDatabase, ref, set, get, onValue, off } from 'firebase/database';
+import { getDatabase, ref, set, get, onValue, off, remove } from 'firebase/database';
 import app from '@/app/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import AvatarUpload from '@/components/profile/avatar-upload';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { getAuth, signOut } from 'firebase/auth'; // <-- Import signOut
 
-interface Address {
-  id: string;
-  type: string;
-  name: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  isDefault: boolean;
-}
-
-interface ProfileData {
-  UserName: string;
-  UserAddress: string;
-  UserPhone: string;
-  UserEmail: string;
-  UserAvatar: string;
-  addresses: Address[];
-  orders: any[];
-  preferences: {
-    emailNotifications: boolean;
-    smsNotifications: boolean;
-    orderUpdates: boolean;
-    promotions: boolean;
-    newsletter: boolean;
-  };
-}
+// ... Address and ProfileData interfaces remain unchanged
 
 export default function ProfilePage() {
   const { user, userData, loading, refreshUserData } = useFirebaseAuth();
-  const { toast } = useToast();
   const router = useRouter();
+
+  // ... all your state hooks
 
   const [profileData, setProfileData] = useState<ProfileData>({
     UserName: '',
@@ -82,6 +62,7 @@ export default function ProfilePage() {
     isDefault: false,
   });
   const [activeTab, setActiveTab] = useState('profile');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -96,7 +77,6 @@ export default function ProfilePage() {
       const unsubscribe = onValue(userRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
-          console.log('Profile: Fetched user data:', data); // Debugging
           setProfileData(prev => ({
             ...prev,
             UserName: data.UserName || '',
@@ -106,7 +86,6 @@ export default function ProfilePage() {
             UserAvatar: data.UserAvatar || 'https://static.vecteezy.com/system/resources/previews/020/911/732/non_2x/profile-icon-avatar-icon-user-icon-person-icon-free-png.png',
           }));
         } else {
-          console.log('Profile: No user data found in Firebase');
           setProfileData(prev => ({
             ...prev,
             UserName: userData?.UserName || '',
@@ -115,26 +94,17 @@ export default function ProfilePage() {
             UserEmail: userData?.UserEmail || user.email || '',
             UserAvatar: userData?.UserAvatar || 'https://static.vecteezy.com/system/resources/previews/020/911/732/non_2x/profile-icon-avatar-icon-user-icon-person-icon-free-png.png',
           }));
-          toast({
-            title: 'Warning',
-            description: 'No profile data found. Please update your profile.',
-            variant: 'default',
-          });
+          toast.warning('No profile data found. Please update your profile.');
         }
       }, (error) => {
-        console.error('Profile: Error fetching user data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load profile data. Please try again.',
-          variant: 'destructive',
-        });
+        toast.error('Failed to load profile data. Please try again.');
       });
 
       return () => off(userRef, 'value', unsubscribe);
     }
-  }, [user, loading, userData, toast]);
+  }, [user, loading, userData, router]);
 
-  const handleProfileUpdate = (field: string, value: string) => {
+  const handleProfileUpdate = (field: keyof ProfileData, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -144,40 +114,18 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!user) {
-      toast({
-        title: 'Error',
-        description: 'No user logged in.',
-        variant: 'destructive',
-      });
+      toast.error('No user logged in.');
       return;
     }
 
     if (!profileData.UserName.trim() || !profileData.UserAddress.trim() || !profileData.UserEmail.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
+      toast.error('Please fill in all required fields.');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(profileData.UserEmail)) {
-      toast({
-        title: 'Invalid Email',
-        description: 'Please enter a valid email address.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (profileData.UserPhone && !phoneRegex.test(profileData.UserPhone)) {
-      toast({
-        title: 'Invalid Phone Number',
-        description: 'Please enter a valid phone number.',
-        variant: 'destructive',
-      });
+      toast.error('Please enter a valid email address.');
       return;
     }
 
@@ -206,92 +154,36 @@ export default function ProfilePage() {
       await refreshUserData();
 
       setIsEditing(false);
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully updated.',
-      });
+      toast.success('Your profile has been successfully updated.');
     } catch (error: any) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update profile. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddAddress = () => {
-    if (!newAddress.name || !newAddress.street || !newAddress.city) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
+  // --- DELETE ACCOUNT FUNCTION ---
+  const handleDeleteAccount = async () => {
+    if (!user) {
+      toast.error('No user logged in.');
       return;
     }
+    try {
+      setIsLoading(true);
+      const db = getDatabase(app);
+      const userRef = ref(db, `AllUsers/Users/${user.uid}`);
+      await remove(userRef);
 
-    const address = {
-      ...newAddress,
-      id: Date.now().toString(),
-    };
+      // Sign out the user from Firebase Auth
+      const auth = getAuth(app);
+      await signOut(auth);
 
-    setProfileData(prev => ({
-      ...prev,
-      addresses: [...prev.addresses, address]
-    }));
-
-    setNewAddress({
-      id: '',
-      type: 'home',
-      name: '',
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: 'Nepal',
-      isDefault: false,
-    });
-
-    setShowAddressDialog(false);
-    toast({
-      title: 'Address added',
-      description: 'New address has been added successfully.',
-    });
-  };
-
-  const handleDeleteAddress = (addressId: string) => {
-    setProfileData(prev => ({
-      ...prev,
-      addresses: prev.addresses.filter((addr: Address) => addr.id !== addressId)
-    }));
-    toast({
-      title: 'Address deleted',
-      description: 'Address has been removed successfully.',
-    });
-  };
-
-  const handleSetDefaultAddress = (addressId: string) => {
-    setProfileData(prev => ({
-      ...prev,
-      addresses: prev.addresses.map((addr: Address) => ({
-        ...addr,
-        isDefault: addr.id === addressId
-      }))
-    }));
-    toast({
-      title: 'Default address updated',
-      description: 'Default address has been changed successfully.',
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'delivered': return 'default';
-      case 'shipped': return 'secondary';
-      case 'processing': return 'outline';
-      default: return 'destructive';
+      toast.success('Your account has been deleted.');
+      router.push('/login');
+    } catch (error: any) {
+      toast.error('Failed to delete account. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -335,11 +227,6 @@ export default function ProfilePage() {
               <p className="text-sm text-gray-500">
                 Member since {userData?.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear()}
               </p>
-              {/* {userData && (
-                <Badge variant="outline" className="mt-2">
-                  {userData.userType === 'seller' ? 'Seller Account' : 'Customer Account'}
-                </Badge>
-              )} */}
             </div>
           </div>
           {activeTab !== 'settings' && (
@@ -408,8 +295,7 @@ export default function ProfilePage() {
                       id="userphone"
                       type="tel"
                       value={profileData.UserPhone}
-                      onChange={(e) => handleProfileUpdate('UserPhone', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={true}
                       placeholder="98XXXXXXXX"
                     />
                   </div>
@@ -459,17 +345,48 @@ export default function ProfilePage() {
                 <CardTitle>Account Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full justify-start">
-                  Change Password
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Download My Data
-                </Button>
-                <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700">
-                  Delete Account
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 hover:text-red-700"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={isLoading}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {isLoading ? 'Deleting...' : 'Delete Account'}
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Delete Account Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <DialogContent className="bg-white rounded-lg shadow-lg max-w-md p-6 font-inter">
+                <DialogHeader>
+                  <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900">Delete Account</DialogTitle>
+                  <DialogDescription className="text-gray-600 text-sm sm:text-base">
+                    Are you sure you want to <span className="text-red-600 font-semibold">delete your account</span>?<br />
+                    This action cannot be undone and all your data will be permanently removed.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-4 flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteDialogOpen(false)}
+                    className="rounded-lg border-gray-300 hover:bg-gray-50 text-xs sm:text-sm"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      setDeleteDialogOpen(false);
+                      await handleDeleteAccount();
+                    }}
+                    className="rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm"
+                  >
+                    Confirm Delete
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </div>

@@ -13,23 +13,24 @@ import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, get, remove, push, set, update } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 import app from '@/app/firebaseConfig';
+import { toast } from 'sonner';
 
 export default function CartPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
   const [items, setItems] = useState<any[]>([]);
   const [cartLoading, setCartLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<{ id: string; productTitle: string } | null>(null);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [updatingQty, setUpdatingQty] = useState<string | null>(null);
 
+  const DELIVERY_CHARGE = 120;
+
   const fetchCartItems = async () => {
     if (!user) return;
     setCartLoading(true);
-    setMessage('');
     try {
       const db = getDatabase(app);
       const cartRef = ref(db, `AllUsers/Users/${user.uid}/UserCartItems`);
@@ -53,14 +54,13 @@ export default function CartPage() {
     } catch (error: any) {
       setItems([]);
       setImageIndices({});
-      setMessage(`Failed to load cart: ${error.message}`);
+      toast.error(`Failed to load cart: ${error.message}`);
     } finally {
       setCartLoading(false);
     }
   };
 
   const getTotal = () => items.reduce((sum, item) => sum + (item.productPrice * item.productQuantity || 0), 0);
-  const getTotalQuantity = () => items.reduce((sum, item) => sum + (item.productQuantity || 0), 0);
 
   const clearCart = async () => {
     if (!user) return;
@@ -70,15 +70,15 @@ export default function CartPage() {
       await remove(cartRef);
       setItems([]);
       setImageIndices({});
-      setMessage('Cart cleared successfully!');
+      toast.success('Cart cleared successfully!');
     } catch (error: any) {
-      setMessage(`Failed to clear cart: ${error.message}`);
+      toast.error(`Failed to clear cart: ${error.message}`);
     }
   };
 
   const handleDeleteFromCart = async (id: string, productTitle: string) => {
     if (!user) {
-      setMessage('Please log in to remove items from your cart.');
+      toast.error('Please log in to remove items from your cart.');
       return;
     }
     try {
@@ -91,10 +91,10 @@ export default function CartPage() {
         delete newIndices[id];
         return newIndices;
       });
-      setMessage(`"${productTitle}" removed from cart successfully!`);
+      toast.success(`"${productTitle}" removed from cart successfully!`);
       await fetchCartItems();
     } catch (error: any) {
-      setMessage(`Failed to remove "${productTitle}" from cart: ${error.message}`);
+      toast.error(`Failed to remove "${productTitle}" from cart: ${error.message}`);
     }
   };
 
@@ -128,11 +128,10 @@ export default function CartPage() {
         new Notification(title, { body: message, icon: '/favicon.ico' });
       }
     } catch (error: any) {
-      setMessage(`Error saving notification: ${error.message}`);
+      toast.error(`Error saving notification: ${error.message}`);
     }
   };
 
-  // --- QUANTITY HANDLER ---
   const handleQuantityChange = async (id: string, newQty: number) => {
     if (!user) return;
     if (newQty < 1) return;
@@ -146,9 +145,8 @@ export default function CartPage() {
           item.id === id ? { ...item, productQuantity: newQty } : item
         )
       );
-      setMessage('');
     } catch (error: any) {
-      setMessage(`Failed to update quantity: ${error.message}`);
+      toast.error(`Failed to update quantity: ${error.message}`);
     } finally {
       setUpdatingQty(null);
     }
@@ -156,13 +154,12 @@ export default function CartPage() {
 
   const handleConfirmCheckout = async () => {
     setCheckoutDialogOpen(false);
-    setMessage('');
     if (!user) {
-      setMessage("You must be logged in to place an order.");
+      toast.error("You must be logged in to place an order.");
       return;
     }
     if (items.length === 0) {
-      setMessage("Your cart is empty. Please add items before checking out.");
+      toast.error("Your cart is empty. Please add items before checking out.");
       return;
     }
     try {
@@ -170,7 +167,7 @@ export default function CartPage() {
       const auth = getAuth(app);
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        setMessage("Authentication error. Please log in again.");
+        toast.error("Authentication error. Please log in again.");
         return;
       }
       const userProfileRef = ref(db, `AllUsers/Users/${currentUser.uid}`);
@@ -187,10 +184,8 @@ export default function CartPage() {
         userEmail = profileData.UserEmail || '';
       }
 
-      // --- DELIVERY CHARGE LOGIC ---
       const subtotal = getTotal();
-      const totalQuantity = getTotalQuantity();
-      const deliveryCharge = totalQuantity * 120;
+      const deliveryCharge = DELIVERY_CHARGE; // Always Rs.120
       const finalTotal = subtotal + deliveryCharge;
 
       const orderRefUser = ref(db, `AllUsers/Users/${currentUser.uid}/UserOrders`);
@@ -222,7 +217,7 @@ export default function CartPage() {
           productRandomId: item.productRandomId || null,
         })),
         subtotal: subtotal,
-        shipping: deliveryCharge, // renamed in UI below
+        shipping: deliveryCharge,
         finalTotal: finalTotal,
       };
 
@@ -233,7 +228,7 @@ export default function CartPage() {
         `- Title: ${item.productTitle}; Price: Rs.${item.productPrice.toFixed(2)}; Quantity: ${item.productQuantity}; Category: ${item.productCategory}; Unit: ${item.productUnit}; Type: ${item.productType}; Images: [${item.productImages.join(', ')}]`
       ).join('\n');
 
-      const notificationMessage = `Dear ${userName},\nYour order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nShipping to: ${userAddress}\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nDelivery Charge: Rs.${orderData.shipping.toFixed(2)}\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
+      const notificationMessage = `Dear ${userName},\nYour order ${orderData.orderNumber} has been placed successfully!\n\nOrder Items:\n${itemDetails}\n\nShipping to: ${userAddress}\nSubtotal: Rs.${orderData.subtotal.toFixed(2)}\nDelivery Charge: Rs.120.00\nTotal: Rs.${orderData.finalTotal.toFixed(2)}`;
 
       await saveNotificationToFirebase(
         currentUser.uid,
@@ -243,10 +238,10 @@ export default function CartPage() {
 
       await clearCart();
 
-      setMessage("Order placed successfully! Redirecting to your orders...");
+      toast.success("Order placed successfully! Redirecting to your orders...");
       router.push('/profile/orders');
     } catch (error: any) {
-      setMessage(`Failed to place order: ${error.message}`);
+      toast.error(`Failed to place order: ${error.message}`);
     }
   };
 
@@ -274,10 +269,8 @@ export default function CartPage() {
     return () => clearInterval(interval);
   }, [items]);
 
-  // --- ORDER SUMMARY CALC ---
   const subtotal = getTotal();
-  const totalQuantity = getTotalQuantity();
-  const deliveryCharge = 120;
+  const deliveryCharge = DELIVERY_CHARGE; // Always Rs.120
   const finalTotal = subtotal + deliveryCharge;
 
   if (loading || cartLoading) {
@@ -315,16 +308,6 @@ export default function CartPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
-      {message && (
-        <div
-          className={`border px-4 py-3 rounded-lg mb-6 ${
-            message.includes('successfully') ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'
-          }`}
-          role="alert"
-        >
-          <span className="block text-sm sm:text-base">{message}</span>
-        </div>
-      )}
       <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Shopping Cart</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -339,14 +322,23 @@ export default function CartPage() {
             <CardContent>
               <div className="space-y-4">
                 {items.map((item) => (
-                  <CartItem
-                    key={item.id}
-                    item={item}
-                    onDelete={openConfirmDialog}
-                    imageIndex={imageIndices[item.id] || 0}
-                    onQuantityChange={handleQuantityChange}
-                    updating={updatingQty === item.id}
-                  />
+                  <div key={item.id} className="relative group">
+                    <div
+                      className="absolute inset-0 z-10 cursor-pointer"
+                      onClick={() => router.push(`/product/${item.productId || item.id}`)}
+                      aria-label={`View details for ${item.productTitle}`}
+                      style={{ borderRadius: 12, background: 'transparent' }}
+                    />
+                    <div className="relative z-20">
+                      <CartItem
+                        item={item}
+                        onDelete={openConfirmDialog}
+                        imageIndex={imageIndices[item.id] || 0}
+                        onQuantityChange={handleQuantityChange}
+                        updating={updatingQty === item.id}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </CardContent>

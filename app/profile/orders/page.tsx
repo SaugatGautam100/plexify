@@ -7,9 +7,8 @@ import { Badge, BadgeProps } from '@/components/ui/badge';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
 import { getDatabase, ref, onValue, off } from 'firebase/database';
 import Link from 'next/link';
-import app from '../../firebaseConfig'; // Adjust path if needed
+import app from '../../firebaseConfig';
 
-// --- Type Definitions for better code safety ---
 interface OrderItem {
   productId: string;
   productTitle: string;
@@ -30,24 +29,23 @@ interface Order {
   status: 'pending' | 'received' | 'dispatched' | 'delivered' | 'cancelled';
   items: OrderItem[];
   subtotal: number;
-  shipping: number; // This field holds the delivery charge
+  shipping: number;
   finalTotal: number;
 }
 
-// --- Helper function for status badges ---
 const getStatusBadgeVariant = (status: Order['status']): BadgeProps['variant'] => {
   switch (status) {
     case 'delivered':
-      return 'default'; // Green (by default in shadcn)
+      return 'default';
     case 'dispatched':
-      return 'outline'; // Blue-ish
+      return 'outline';
     case 'received':
-      return 'secondary'; // Gray
+      return 'secondary';
     case 'cancelled':
-      return 'destructive'; // Red
+      return 'destructive';
     case 'pending':
     default:
-      return 'secondary'; // Gray
+      return 'secondary';
   }
 };
 
@@ -169,86 +167,89 @@ export default function OrdersPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {orders.map((order) => (
-              <Card key={order.orderId}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Package className="w-5 h-5" />
-                        Order #{order.orderNumber}
-                      </CardTitle>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(order.createdAt).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {new Date(order.createdAt).toLocaleTimeString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CreditCard className="w-4 h-4" />
-                          {order.paymentMethod}
-                        </span>
+            {orders.map((order) => {
+              const deliveryCharge = 120; // Always Rs.120
+              const subtotal = order.subtotal || 0;
+              const finalTotal = subtotal + deliveryCharge;
+              return (
+                <Card key={order.orderId}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Package className="w-5 h-5" />
+                          Order #{order.orderNumber}
+                        </CardTitle>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(order.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {new Date(order.createdAt).toLocaleTimeString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CreditCard className="w-4 h-4" />
+                            {order.paymentMethod}
+                          </span>
+                        </div>
                       </div>
+                      <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize">
+                        {order.status}
+                      </Badge>
                     </div>
-                    {/* --- CORRECTED STATUS BADGE --- */}
-                    <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize">
-                      {order.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      {order.items?.map((item) => (
-                        <div key={item.productId} className="flex items-center gap-3">
-                          <Link href={`/product/${item.productId}`} className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block">
-                            <img
-                              src={item.productImages?.[imageIndices[order.id + item.productId] || 0] || FALLBACK_IMAGE}
-                              alt={item.productTitle || 'Product Image'}
-                              className="w-full h-full object-cover rounded-lg"
-                              loading="lazy"
-                              onError={handleImageError}
-                            />
-                          </Link>
-                          <div className="flex-1">
-                            <Link href={`/product/${item.productId}`} className="font-medium text-gray-900 hover:underline block">
-                              {item.productTitle}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        {order.items?.map((item) => (
+                          <div key={item.productId} className="flex items-center gap-3">
+                            <Link href={`/product/${item.productId}`} className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block">
+                              <img
+                                src={item.productImages?.[imageIndices[order.id + item.productId] || 0] || FALLBACK_IMAGE}
+                                alt={item.productTitle || 'Product Image'}
+                                className="w-full h-full object-cover rounded-lg"
+                                loading="lazy"
+                                onError={handleImageError}
+                              />
                             </Link>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              <p>Qty: {item.productQuantity} × Rs.{(item.productPrice || 0).toFixed(2)}</p>
-                              <p>Category: {item.productCategory}</p>
+                            <div className="flex-1">
+                              <Link href={`/product/${item.productId}`} className="font-medium text-gray-900 hover:underline block">
+                                {item.productTitle}
+                              </Link>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p>Qty: {item.productQuantity} × Rs.{(item.productPrice || 0).toFixed(2)}</p>
+                                <p>Category: {item.productCategory}</p>
+                              </div>
+                            </div>
+                            <div className="font-medium">
+                              Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
                             </div>
                           </div>
-                          <div className="font-medium">
-                            Rs.{(item.productPrice * item.productQuantity).toFixed(2)}
+                        ))}
+                      </div>
+                      <div className="border-t pt-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Subtotal</span>
+                            <span className="text-gray-900">Rs.{subtotal.toFixed(2)}</span>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    {/* --- CORRECTED TOTALS SECTION --- */}
-                    <div className="border-t pt-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Subtotal</span>
-                          <span className="text-gray-900">Rs.{(order.subtotal || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Delivery Charge</span>
-                          <span className="text-gray-900">Rs.{(order.shipping || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center font-bold text-lg">
-                          <span>Total</span>
-                          <span>Rs.{(order.finalTotal || 0).toFixed(2)}</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Delivery Charge</span>
+                            <span className="text-gray-900">Rs.{deliveryCharge.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center font-bold text-lg">
+                            <span>Total</span>
+                            <span>Rs.{finalTotal.toFixed(2)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

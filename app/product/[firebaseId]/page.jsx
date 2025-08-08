@@ -9,42 +9,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner'; // Use Sonner toast
 
-/**
- * ProductDetailPage component displays detailed information for a single product.
- * It fetches product data from Firebase Realtime Database based on the productId
- * and allows adding the product to the user's cart or wishlist with all specified details.
- */
 function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.firebaseId;
 
-  // State to store product data
   const [productData, setProductData] = useState(null);
-  // State to manage loading status
   const [isLoading, setIsLoading] = useState(true);
-  // State to display messages (e.g., error, product not found, cart/wishlist feedback)
-  const [message, setMessage] = useState('');
-  // State for quantity input
   const [productQuantity, setProductQuantity] = useState(1);
-  // State for carousel current image index for the main display
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  // State to control the visibility of the zoomed image modal
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
-  // State for the current image index when the zoom modal is open
   const [zoomedImageIndex, setZoomedImageIndex] = useState(0);
 
-  /**
-   * Fetches the specific product's data from Firebase Realtime Database.
-   * Runs when the component mounts or when productId changes.
-   */
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      setMessage('');
       if (!productId) {
-        setMessage("No product ID provided. Please navigate from the product list.");
+        toast.error("No product ID provided. Please navigate from the product list.");
         setIsLoading(false);
         return;
       }
@@ -57,14 +40,13 @@ function ProductDetailPage() {
         if (snapshot.exists()) {
           const fetchedProduct = snapshot.val();
           setProductData({ ...fetchedProduct, productId: productId });
-          setMessage('');
         } else {
-          setMessage("Product not found. It might have been removed or the link is incorrect.");
+          toast.error("Product not found. It might have been removed or the link is incorrect.");
           setProductData(null);
         }
       } catch (error) {
         console.error("Error fetching product data: ", error);
-        setMessage("Failed to load product details. Please try again later.");
+        toast.error("Failed to load product details. Please try again later.");
         setProductData(null);
       } finally {
         setIsLoading(false);
@@ -74,45 +56,41 @@ function ProductDetailPage() {
     fetchData();
   }, [productId]);
 
-  /**
-   * Saves the product data to the user's cart in Firebase Realtime Database
-   * or updates the quantity if the product already exists in the cart.
-   */
   const handleAddToCart = async () => {
-    setMessage('');
+    let errorMessage = "";
+    let successMessage = "";
+
     try {
       const auth = getAuth(app);
       const user = auth.currentUser;
       if (!user) {
-        setMessage("Please log in to add items to your cart.");
+        errorMessage = "Please log in to add items to your cart.";
         return;
       }
 
       if (!productData) {
-        setMessage("Product data is missing. Please try again.");
+        errorMessage = "Product data is missing. Please try again.";
         return;
       }
 
-      // Validate required fields
       const requiredFields = [
         'productTitle', 'productPrice', 'productCategory',
-        'productStock', 'productUnit', 'productType',
-        'adminUid', 'productId'
+        'productStock', 'productUnit', 'productType', 'adminUid', 'productId'
       ];
       for (const field of requiredFields) {
         if (!productData[field]) {
-          setMessage(`Missing product detail: ${field.replace('product', '')}. Cannot add to cart.`);
+          errorMessage = `Missing product detail: ${field.replace('product', '')}. Cannot add to cart.`;
           return;
         }
       }
 
-      const quantity = parseInt(productQuantity);
+      const quantity = parseInt(productQuantity, 10);
       if (isNaN(quantity) || quantity < 1) {
-        setMessage("Please enter a valid quantity (minimum 1).");
+        errorMessage = "Please enter a valid quantity (minimum 1).";
         return;
       }
       if (quantity > productData.productStock) {
-        setMessage(`Cannot add ${quantity} items. Only ${productData.productStock} in stock.`);
+        errorMessage = `Cannot add ${quantity} items. Only ${productData.productStock} in stock.`;
         return;
       }
 
@@ -125,10 +103,9 @@ function ProductDetailPage() {
         snapshot.forEach((childSnapshot) => {
           const cartItem = childSnapshot.val();
           if (cartItem.productId === productData.productId) {
-            // Product found, update quantity
             const newQuantity = cartItem.productQuantity + quantity;
             if (newQuantity > productData.productStock) {
-              setMessage(`Adding ${quantity} more would exceed stock. Only ${productData.productStock} in total allowed.`);
+              errorMessage = `Adding ${quantity} more would exceed stock. Only ${productData.productStock} in total allowed.`;
               productFoundInCart = true;
               return true;
             }
@@ -137,12 +114,14 @@ function ProductDetailPage() {
               itemCount: newQuantity,
               addedAt: Date.now()
             });
-            setMessage(`Quantity of "${productData.productTitle}" updated to ${newQuantity} in cart.`);
+            successMessage = `Quantity of "${productData.productTitle}" updated to ${newQuantity} in cart.`;
             productFoundInCart = true;
             return true;
           }
         });
       }
+
+      if (errorMessage) return;
 
       if (!productFoundInCart) {
         const newDocRef = push(userCartRef);
@@ -161,43 +140,45 @@ function ProductDetailPage() {
           productUnit: productData.productUnit,
           addedAt: Date.now()
         });
-        setMessage(`"${productData.productTitle}" added to cart successfully!`);
+        successMessage = `"${productData.productTitle}" added to cart successfully!`;
       }
-
       setProductQuantity(1);
     } catch (error) {
       console.error("Error adding/updating to cart:", error);
-      setMessage(`Failed to add product to cart: ${error.message}.`);
+      errorMessage = `Failed to add product to cart: ${error.message}.`;
+    } finally {
+      if (errorMessage) {
+        toast.error(errorMessage);
+      } else if (successMessage) {
+        toast.success(successMessage);
+      }
     }
   };
 
-  /**
-   * Adds the product to the user's wishlist with all required fields.
-   * Checks for duplicates before adding.
-   */
   const handleAddToWishlist = async () => {
-    setMessage('');
+    let errorMessage = "";
+    let successMessage = "";
+
     try {
       const auth = getAuth(app);
       const user = auth.currentUser;
       if (!user) {
-        setMessage("Please log in to add items to your wishlist.");
+        errorMessage = "Please log in to add items to your wishlist.";
         return;
       }
 
       if (!productData) {
-        setMessage("Product data is missing. Cannot add to wishlist.");
+        errorMessage = "Product data is missing. Cannot add to wishlist.";
         return;
       }
 
-      // Validate required fields
       const requiredFields = [
         'productId', 'productTitle', 'productPrice', 'productCategory',
         'productStock', 'productUnit', 'productType', 'adminUid'
       ];
       for (const field of requiredFields) {
         if (!productData[field]) {
-          setMessage(`Missing product detail: ${field.replace('product', '')}. Cannot add to wishlist.`);
+          errorMessage = `Missing product detail: ${field.replace('product', '')}. Cannot add to wishlist.`;
           return;
         }
       }
@@ -209,8 +190,7 @@ function ProductDetailPage() {
 
       if (snapshot.exists()) {
         snapshot.forEach((childSnapshot) => {
-          const wishlistItem = childSnapshot.val();
-          if (wishlistItem.productId === productData.productId) {
+          if (childSnapshot.val().productId === productData.productId) {
             productFoundInWishlist = true;
             return true;
           }
@@ -218,7 +198,7 @@ function ProductDetailPage() {
       }
 
       if (productFoundInWishlist) {
-        setMessage(`"${productData.productTitle}" is already in your wishlist.`);
+        errorMessage = `"${productData.productTitle}" is already in your wishlist.`;
       } else {
         const newDocRef = push(userWishlistRef);
         await set(newDocRef, {
@@ -236,78 +216,51 @@ function ProductDetailPage() {
           productUnit: productData.productUnit,
           addedAt: Date.now()
         });
-        setMessage(`"${productData.productTitle}" added to wishlist successfully!`);
+        successMessage = `"${productData.productTitle}" added to wishlist successfully!`;
       }
     } catch (error) {
       console.error("Error adding to wishlist:", error);
-      setMessage(`Failed to add product to wishlist: ${error.message}.`);
+      errorMessage = `Failed to add product to wishlist: ${error.message}.`;
+    } finally {
+      if (errorMessage) {
+        toast.error(errorMessage);
+      } else if (successMessage) {
+        toast.success(successMessage);
+      }
     }
   };
 
-  // Handle back button click
-  const handleBackButtonClick = () => {
-    router.back();
-  };
-
-  // Handle quantity input change
-  const handleQuantityChange = (e) => {
-    const value = e.target.value;
-    setProductQuantity(value);
-  };
-
-  // Open the zoom modal and set the initial image
+  const handleBackButtonClick = () => router.back();
+  const handleQuantityChange = (e) => setProductQuantity(e.target.value);
   const openZoomModal = (index) => {
     setZoomedImageIndex(index);
     setIsZoomModalOpen(true);
   };
+  const closeZoomModal = () => setIsZoomModalOpen(false);
 
-  // Close the zoom modal
-  const closeZoomModal = () => {
-    setIsZoomModalOpen(false);
-  };
-
-  // Navigate to the previous image in the carousel (main display)
   const handlePrevImage = useCallback(() => {
-    if (productData && productData.productImageUris) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === 0 ? productData.productImageUris.length - 1 : prevIndex - 1
-      );
+    if (productData?.productImageUris) {
+      setCurrentImageIndex((prev) => (prev === 0 ? productData.productImageUris.length - 1 : prev - 1));
     }
   }, [productData]);
 
-  // Navigate to the next image in the carousel (main display)
   const handleNextImage = useCallback(() => {
-    if (productData && productData.productImageUris) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === productData.productImageUris.length - 1 ? 0 : prevIndex + 1
-      );
+    if (productData?.productImageUris) {
+      setCurrentImageIndex((prev) => (prev === productData.productImageUris.length - 1 ? 0 : prev + 1));
     }
   }, [productData]);
 
-  // Navigate to the previous image in the zoomed carousel
   const handlePrevZoomedImage = useCallback(() => {
-    if (productData && productData.productImageUris) {
-      setZoomedImageIndex((prevIndex) =>
-        prevIndex === 0 ? productData.productImageUris.length - 1 : prevIndex - 1
-      );
-      if (productData.productImageUris.length === 0) {
-        setZoomedImageIndex(0); // Ensure it's not negative if array becomes empty
-      }
+    if (productData?.productImageUris) {
+      setZoomedImageIndex((prev) => (prev === 0 ? productData.productImageUris.length - 1 : prev - 1));
     }
   }, [productData]);
 
-  // Navigate to the next image in the zoomed carousel
   const handleNextZoomedImage = useCallback(() => {
-    if (productData && productData.productImageUris) {
-      setZoomedImageIndex((prevIndex) =>
-        prevIndex === productData.productImageUris.length - 1 ? 0 : prevIndex + 1
-      );
-      if (productData.productImageUris.length === 0) {
-        setZoomedImageIndex(0); // Ensure it's not out of bounds if array becomes empty
-      }
+    if (productData?.productImageUris) {
+      setZoomedImageIndex((prev) => (prev === productData.productImageUris.length - 1 ? 0 : prev + 1));
     }
   }, [productData]);
-
 
   return (
     <div className="container mx-auto px-4 py-8 font-inter">
@@ -329,31 +282,16 @@ function ProductDetailPage() {
         </div>
       ) : (
         <>
-          {message && (
-            <div
-              className={`border px-4 py-3 rounded-lg relative mb-6 ${
-                message.includes("successfully") || message.includes("updated")
-                  ? "bg-green-100 border-green-400 text-green-700"
-                  : "bg-red-100 border-red-400 text-red-700"
-              }`}
-              role="alert"
-            >
-              <span className="block sm:inline">{message}</span>
-            </div>
-          )}
-
           {productData ? (
             <Card className="rounded-xl shadow-lg overflow-hidden md:flex md:items-start md:space-x-8 p-6">
-              {/* Main Product Image Section */}
-              {/* Parent div for the main image with relative position and defined dimensions */}
               <div className="relative w-full md:w-1/2 h-[400px] rounded-lg overflow-hidden flex-shrink-0 mb-6 md:mb-0">
-                {productData.productImageUris && productData.productImageUris.length > 0 ? (
+                {productData.productImageUris?.length > 0 ? (
                   <>
                     <Image
                       src={productData.productImageUris[currentImageIndex]}
-                      alt={`${productData.productTitle || "Product Image"}`}
-                      layout="fill"        // Use layout="fill"
-                      objectFit="contain"  // Ensures the entire image is visible
+                      alt={productData.productTitle || "Product Image"}
+                      layout="fill"
+                      objectFit="contain"
                       className="rounded-lg cursor-pointer"
                       onError={(e) => {
                         e.currentTarget.src = "https://placehold.co/800x600/E0E0E0/808080?text=Image+Error";
@@ -361,29 +299,29 @@ function ProductDetailPage() {
                       onClick={() => openZoomModal(currentImageIndex)}
                     />
                     {productData.productImageUris.length > 1 && (
-                      <div className="absolute top-1/2 transform -translate-y-1/2 flex justify-between w-full px-4 z-10">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={handlePrevImage}
-                          className="bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md"
-                        >
-                          <ChevronLeft className="h-6 w-6" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={handleNextImage}
-                          className="bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md"
-                        >
-                          <ChevronRight className="h-6 w-6" />
-                        </Button>
-                      </div>
-                    )}
-                    {productData.productImageUris.length > 1 && (
-                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-sm z-10">
-                        {`${currentImageIndex + 1} / ${productData.productImageUris.length}`}
-                      </div>
+                      <>
+                        <div className="absolute top-1/2 transform -translate-y-1/2 flex justify-between w-full px-4 z-10">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handlePrevImage}
+                            className="bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md"
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handleNextImage}
+                            className="bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md"
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </Button>
+                        </div>
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded-full text-sm z-10">
+                          {`${currentImageIndex + 1} / ${productData.productImageUris.length}`}
+                        </div>
+                      </>
                     )}
                   </>
                 ) : (
@@ -470,8 +408,7 @@ function ProductDetailPage() {
               </CardContent>
             </Card>
           ) : (
-            !isLoading &&
-            !message && (
+            !isLoading && (
               <div className="text-center py-12">
                 <h3 className="text-xl font-semibold mb-2 text-gray-700">Product details could not be loaded.</h3>
                 <p className="text-gray-600">Please check the URL or try again from the product list.</p>
@@ -481,59 +418,26 @@ function ProductDetailPage() {
         </>
       )}
 
-      {/* Zoomed Image Modal */}
-      {isZoomModalOpen && productData && productData.productImageUris && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80"
-          onClick={closeZoomModal}
-        >
-          <div
-            className="relative bg-white p-4 rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={closeZoomModal}
-              className="absolute top-2 right-2 text-white bg-gray-700 hover:bg-gray-600 rounded-full z-10"
-            >
-              <X className="h-6 w-6" />
-            </Button>
-
-            {/* Parent div for the zoomed image with relative position and defined dimensions */}
+      {isZoomModalOpen && productData?.productImageUris && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80" onClick={closeZoomModal}>
+          <div className="relative bg-white p-4 rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" onClick={closeZoomModal} className="absolute top-2 right-2 text-white bg-gray-700 hover:bg-gray-600 rounded-full z-10"><X className="h-6 w-6" /></Button>
             <div className="relative w-full h-[70vh] md:h-[80vh] max-w-[1200px] max-h-[900px] mx-auto flex items-center justify-center">
               <Image
                 src={productData.productImageUris[zoomedImageIndex]}
                 alt={`${productData.productTitle || "Product Image"} - Zoomed`}
-                layout="fill"       // Use layout="fill"
-                objectFit="contain" // Ensures the entire image is visible within the modal
+                layout="fill"
+                objectFit="contain"
                 className="rounded-lg"
                 onError={(e) => {
                   e.currentTarget.src = "https://placehold.co/1000x800/E0E0E0/808080?text=Image+Error";
                 }}
               />
-
               {productData.productImageUris.length > 1 && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handlePrevZoomedImage}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"
-                  >
-                    <ChevronLeft className="h-6 w-6" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleNextZoomedImage}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"
-                  >
-                    <ChevronRight className="h-6 w-6" />
-                  </Button>
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">
-                    {`${zoomedImageIndex + 1} / ${productData.productImageUris.length}`}
-                  </div>
+                  <Button variant="outline" size="icon" onClick={handlePrevZoomedImage} className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"><ChevronLeft className="h-6 w-6" /></Button>
+                  <Button variant="outline" size="icon" onClick={handleNextZoomedImage} className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full shadow-md z-10"><ChevronRight className="h-6 w-6" /></Button>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm z-10">{`${zoomedImageIndex + 1} / ${productData.productImageUris.length}`}</div>
                 </>
               )}
             </div>

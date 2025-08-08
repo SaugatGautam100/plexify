@@ -10,6 +10,8 @@ import { Toaster } from '@/components/ui/sonner';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import SessionWrapper from '@/contexts/SessionWrapper';
+import { Toast } from '@/components/ui/toast';
+import { ToastProvider } from '@radix-ui/react-toast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,12 +38,21 @@ export default function RootLayout({
                     <main className="flex-1">
                       <SessionWrapper>
 
-                      {children}
+                        {children}
                       </SessionWrapper>
                     </main>
                     <Footer />
                   </div>
-                  <Toaster />
+
+                  <Toaster
+                    position="top-center"
+                    toastOptions={{
+                      className:
+                        'bg-white text-[#1e293b] border-2 border-blue-300 shadow-2xl font-semibold dark:bg-[#0f172a] dark:text-white dark:border-blue-600',
+                      duration: 2000,
+                    }}
+
+                  />
                 </WishlistProvider>
               </CartProvider>
             </SellerProvider>
