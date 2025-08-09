@@ -301,7 +301,7 @@ export default function PhoneAuth() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{step === 'phone' ? 'Phone Authentication' : 'Verify OTP'}</CardTitle>
+        <CardTitle>{step === 'phone' ? 'Use +9779866294492 for number and Otp 123456' : 'Type 123456 Verify OTP'}</CardTitle>
         <CardDescription>
           {step === 'phone'
             ? 'Enter your details and phone number to receive a verification code'
