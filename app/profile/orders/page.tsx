@@ -5,7 +5,13 @@ import { Package, Calendar, CreditCard, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge, BadgeProps } from '@/components/ui/badge';
 import { useFirebaseAuth } from '@/components/auth/firebase-auth-context';
-import { getDatabase, ref, onValue, off } from 'firebase/database';
+import {
+  getDatabase,
+  ref,
+  onValue,
+  query,
+  orderByChild,
+} from 'firebase/database';
 import Link from 'next/link';
 import app from '../../firebaseConfig';
 
@@ -49,6 +55,19 @@ const getStatusBadgeVariant = (status: Order['status']): BadgeProps['variant'] =
   }
 };
 
+// Normalize createdAt to milliseconds
+const toMs = (ts: any): number => {
+  if (ts == null) return 0;
+  if (typeof ts === 'number') return ts < 1e12 ? ts * 1000 : ts; // seconds -> ms
+  if (typeof ts === 'string') {
+    const n = Number(ts);
+    if (!Number.isNaN(n)) return n < 1e12 ? n * 1000 : n;
+    const p = Date.parse(ts);
+    return Number.isNaN(p) ? 0 : p;
+  }
+  return 0;
+};
+
 export default function OrdersPage() {
   const { user, loading: authLoading } = useFirebaseAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -74,23 +93,37 @@ export default function OrdersPage() {
 
     const db = getDatabase(app);
     const userOrdersRef = ref(db, `AllUsers/Users/${user.uid}/UserOrders`);
+    // Order by createdAt at the DB level (ascending), then sort desc in client
+    const q = query(userOrdersRef, orderByChild('createdAt'));
 
     setIsLoading(true);
     setMessage('');
 
     const unsubscribe = onValue(
-      userOrdersRef,
+      q,
       (snapshot) => {
         if (snapshot.exists()) {
           const ordersData = snapshot.val();
-          const fetchedOrders = Object.keys(ordersData)
-            .map((key) => ({
-              id: key,
-              ...ordersData[key],
-            }))
-            .sort((a, b) => b.createdAt - a.createdAt);
+          const fetched = Object.entries(ordersData)
+            .map(([key, value]: [string, any]) => {
+              const createdAtMs = toMs(value?.createdAt);
+              return {
+                id: key,
+                ...value,
+                createdAt: createdAtMs,
+              } as Order;
+            })
+            // Latest first
+            .sort((a, b) => {
+              const diff = b.createdAt - a.createdAt;
+              if (diff !== 0) return diff;
+              // Optional tie-breaker for stable sort
+              const ao = String(a.orderNumber ?? '');
+              const bo = String(b.orderNumber ?? '');
+              return bo.localeCompare(ao);
+            });
 
-          setOrders(fetchedOrders as Order[]);
+          setOrders(fetched);
           setMessage('');
         } else {
           setOrders([]);
@@ -106,7 +139,10 @@ export default function OrdersPage() {
       }
     );
 
-    return () => off(userOrdersRef, 'value', unsubscribe);
+    return () => {
+      // Detach listener
+      unsubscribe();
+    };
   }, [user, authLoading]);
 
   useEffect(() => {

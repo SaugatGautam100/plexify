@@ -22,16 +22,16 @@ export default function Footer() {
               Your trusted online shopping destination for quality products at great prices.
             </p>
             <div className="flex space-x-4">
-              <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="https://www.facebook.com/profile.php?id=61578270260918" className="text-gray-400 hover:text-white transition-colors">
                 <Facebook className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="https://www.facebook.com/profile.php?id=61578270260918" className="text-gray-400 hover:text-white transition-colors">
                 <Twitter className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="https://www.instagram.com/app_plex100/" className="text-gray-400 hover:text-white transition-colors">
                 <Instagram className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="https://www.facebook.com/profile.php?id=61578270260918" className="text-gray-400 hover:text-white transition-colors">
                 <Youtube className="w-5 h-5" />
               </Link>
             </div>
@@ -47,23 +47,23 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/category/electronics" className="text-gray-400 hover:text-white transition-colors">
-                  Electronics
+                <Link href="/category/vegetables-fruits" className="text-gray-400 hover:text-white transition-colors">
+                  Vegetables and Fruits
                 </Link>
               </li>
               <li>
-                <Link href="/category/fashion" className="text-gray-400 hover:text-white transition-colors">
-                  Fashion
+                <Link href="/category/dairy-breakfast" className="text-gray-400 hover:text-white transition-colors">
+                  Dairy and Breakfast
                 </Link>
               </li>
               <li>
-                <Link href="/category/home-garden" className="text-gray-400 hover:text-white transition-colors">
-                  Home & Garden
+                <Link href="/category/chips-namkeen" className="text-gray-400 hover:text-white transition-colors">
+                  Chips & Namkeen
                 </Link>
               </li>
               <li>
-                <Link href="/category/sports-outdoors" className="text-gray-400 hover:text-white transition-colors">
-                  Sports & Outdoors
+                <Link href="/category/cold-drinks-juices" className="text-gray-400 hover:text-white transition-colors">
+                  Cold Drinks & Juices
                 </Link>
               </li>
             </ul>
